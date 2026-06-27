@@ -13,7 +13,7 @@ const router = express.Router();
 
 router.post("/signup", signUpController);
 router.post("/signin", signInController);
-router.get("/allUsers",authorize(["ADMIN , MODERATOR"]) ,  getAllUser);
+router.get("/allUsers",auth, authorize(["ADMIN", "MODERATOR"]) ,  getAllUser);
 router.get("/:id" , getUserPublicProfile)
 router.post("/logout",auth , logoutController );
 router.patch("/updateProfile/:id" ,auth , canEditUser , UpdateUserProfile );

@@ -7,6 +7,11 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+enum Role {
+  USER
+  ADMIN
+  MODERATOR
+}
 
 model User {
   id              String   @id @default(cuid())
@@ -14,7 +19,7 @@ model User {
   email           String   @unique
   password        String
   profileImageURL String   @default("/images/defaultpfp.jpg")
-  role            String   @default("USER")
+  role            Role   @default(USER)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

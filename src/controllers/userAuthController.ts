@@ -3,6 +3,7 @@ import { UserModel } from "../models/user";
 import { createTokenForUser } from "../services/auth";
 import {v7 as uuidv7} from "uuid"
 import redisClient from "../config/redis";
+import { PatchUser } from "../types/patch";
 
 export async function signUpController(req: Request,res: Response){
   try {
@@ -84,4 +85,34 @@ export async function logoutController(req:Request , res:Response) {
   res.status(200).json({
     message: "Logged out successfully",
   });
+}
+
+export async function getUserPublicProfile(req :Request , res:Response){
+   const userId = req.params.id;
+   try{
+      const user = await UserModel.findByIdPublic(userId);
+      if(!user){
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+      return res.status(200).json(user);
+   }catch{
+      res.status(500).json({ error: "Internal server error" });
+      return;
+   }
+}
+export async function UpdateUserProfile(req: Request , res:Response){
+    const userId = req.params.id;
+    const updates = req.body as PatchUser;
+    try{
+      const user = await UserModel.update(userId , updates);
+      if(!user){
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+      res.status(200).json(user);
+    }catch{
+      res.status(500).json({ error: "Internal server error" });
+      return;
+    }
 }

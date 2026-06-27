@@ -2,6 +2,7 @@ import { prisma } from "../config/db";
 import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import { SafeUser } from "../types/user";
+import { PatchUser } from "../types/patch";
 
 export const safeUserSelect = {
   id: true,
@@ -37,4 +38,10 @@ export const UserModel = {
       select:safeUserSelect,
     });
   },
+  async findByIdPublic(userId : string){
+     return prisma.user.findUnique({where:{id:userId} , select : safeUserSelect});
+  },
+  async update(userId: string ,data: PatchUser){
+     return prisma.user.update({where:{id:userId},data,select:safeUserSelect})
+  }
 };

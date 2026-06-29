@@ -1,23 +1,18 @@
 import express from "express";
 import {
   getAllUser,
-  signInController,
-  signUpController,
-  logoutController,
   getUserPublicProfile,
   UpdateUserProfile,
   FollowUser,
   unfollowUser,
   followerList,
   followingList
-} from "../controllers/userAuthController";
+} from "../controllers/userController";
 import auth from "../middlewares/auth"
-import { authorize, canEditUser } from "../middlewares/authorization";
+import { authorize, canEditUser } from "../middlewares/userAuthorization";
 const router = express.Router();
 
-router.post("/signup", signUpController);
-router.post("/signin", signInController);
-router.post("/logout", auth, logoutController);
+
 
 router.get("/allUsers", auth, authorize(["ADMIN", "MODERATOR"]), getAllUser);
 

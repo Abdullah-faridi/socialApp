@@ -3,7 +3,6 @@ import bcrypt from "bcrypt";
 import { Prisma } from "@prisma/client";
 import { SafeUser } from "../types/user";
 import { PatchUser } from "../types/patch";
-import { SocketAddress } from "net";
 
 export const safeUserSelect = {
   id: true,

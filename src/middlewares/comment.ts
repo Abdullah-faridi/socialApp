@@ -1,21 +1,23 @@
+import { NextFunction, Request, Response } from "express";
 import { CommentModel } from "../models/comment";
-import { checkOwnership} from "../helper/checkOwnership";
-import { Request , Response , NextFunction } from "express";
-export async function canModifyComment(
+
+export async function commentExists(
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  const comment = await CommentModel.findById(req.params.id);
-  const allowed = checkOwnership({
-    resource: comment,
-    userId: req.user!.id,
-    role: req.user!.role,
-    allowAdmin: true,
-    res,
-  });
+  try {
+    const comment = await CommentModel.findById(req.params.id);
 
-  if (!allowed) return;
+    if (!comment) {
+      res.status(404).json({
+        error: "Comment not found",
+      });
+      return;
+    }
 
-  next();
+    next();
+  } catch (err) {
+    next(err);
+  }
 }

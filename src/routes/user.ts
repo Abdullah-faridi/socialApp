@@ -7,7 +7,7 @@ import {
   unfollowUser,
   followerList,
   followingList
-} from "../controllers/userController";
+} from "../controllers/user";
 import auth from "../middlewares/auth"
 import { authorize, canEditUser } from "../middlewares/userAuthorization";
 const router = express.Router();

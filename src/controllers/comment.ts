@@ -8,15 +8,15 @@ export async function createComment(req:Request , res : Response){
         const postId = req.params.id;
         const authorId = req.user!.id;
         const comment = await CommentModel.create(postId , authorId,{content , parentId})
-        res.status(200).json({comment})
+        res.status(201).json({comment})
     } catch(err){
         res.status(500).json({ error: getErrorMessage(err) })
     }
 }
 
-export async function getComment(req:Request , res:Response){
+export async function getComments(req:Request , res:Response){
     try{
-        const { postId } = req.params
+        const postId = req.params.id;
         const page = Number(req.query.page) || 1
         const limit = Number(req.query.limit) || 10
         const result = await CommentModel.get(postId, page, limit)

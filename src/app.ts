@@ -6,6 +6,7 @@ import redisClient from "./config/redis";
 import userRoutes from "./routes/user";
 import postRoutes from  "./routes/posts"
 import authRoutes from "./routes/auth"
+import commentRoutes from "./routes/comment"
 const app = express();
 const PORT = process.env.PORT ?? 5123;
 
@@ -17,6 +18,7 @@ app.use(express.json());
 app.use("/auth" , authRoutes)
 app.use("/user", userRoutes);
 app.use("/posts" ,postRoutes);
+app.use("/comments" ,commentRoutes )
 async function main(): Promise<void> {
   try {
     await prisma.$connect();

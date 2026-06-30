@@ -1,3 +1,4 @@
+import { Comment } from "./commentCreate";
 import { CreatePostInput } from "./postCreate";
 export interface PatchUser {
   fullName?: string;
@@ -7,3 +8,5 @@ export interface PatchUser {
 }
 
 export interface updatePost extends Partial<CreatePostInput>{}
+
+export interface updateComment extends Partial<Comment>{}

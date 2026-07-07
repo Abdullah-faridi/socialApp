@@ -4,7 +4,11 @@ import { getErrorMessage } from "../helper/error";
 import { updatePost } from "../types/patch";
 import { LikeModel } from "../models/like";
 import { savePostModel } from "../models/savePost";
-
+import { invalidateLikeCache } from "../helper/invalidateCache";
+import { UserModel } from "../models/user";
+import { invalidateUserFeedsCache } from "../helper/invalidateCache";
+import { generateForYourPage } from "../algorithm/fypAlgo";
+import { paginateFeed } from "../helper/paginate";
 
 export async function createPost(req: Request, res: Response) {
   const { title, altText, type, tags, imageUrls } = req.body;
@@ -16,6 +20,10 @@ export async function createPost(req: Request, res: Response) {
       tags,
       imageUrls,
     })
+    const followerIds =await UserModel.getFollowers(req.user!.id);
+    await Promise.all(
+      followerIds.map(f => invalidateUserFeedsCache(f.followerId))
+    )
     res.status(201).json({ post })
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) })
@@ -32,7 +40,17 @@ export async function getAllPosts(req:Request , res:Response) {
         res.status(500).json({ error: getErrorMessage(err) })
     }
 }
-
+export async function getPersonalizedFeed(req : Request , res : Response){
+  try{
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const feed = await generateForYourPage(req.user!.id);
+    const result = paginateFeed(feed , page , limit);
+    res.status(200).json(result);
+  }catch(err){
+    res.status(500).json({ error: getErrorMessage(err) })
+  }
+}
 export async function updatePost(req:Request , res:Response){
    const postId = req.params.id;
    const updates = req.body as updatePost;
@@ -81,6 +99,7 @@ export async function likePost(req:Request , res : Response){
       const postId = req.params.id;
       const userId = req.user!.id;
       const toggle = await LikeModel.add(postId , userId);
+      await invalidateLikeCache(userId);
       if(toggle.saved){
         res.status(200).json({message : "Liked"})
       }else{

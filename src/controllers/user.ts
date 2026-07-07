@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { UserModel } from "../models/user";
 import { PatchUser } from "../types/patch";
 import { getErrorMessage } from "../helper/error";
+import { invalidateFollowingCache } from "../helper/invalidateCache";
 
 export async function getAllUser(req: Request, res: Response){
   try {
@@ -63,6 +64,7 @@ export async function FollowUser(req : Request , res:Response){
       }
        
       await UserModel.followUser(followerId as string, followingId);
+      await invalidateFollowingCache(followerId);
       res.status(200).json({
         message: "Followed successfully",
       });

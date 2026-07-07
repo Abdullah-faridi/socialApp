@@ -24,7 +24,16 @@ export const LikeModel = {
             where: {
             postId,
             },
-    });
-}
-
+        })
+    },
+    async getUserLikes(userId : string){
+        return prisma.like.findMany({
+            where : { userId },
+            select: {
+                postId: true,
+                post: { select: { authorId: true } },
+            },
+        })
+    },
+    
 }

@@ -117,5 +117,12 @@ export const UserModel = {
           }
       }
     })
-  }
+  },
+  async userFollows(userId :string){
+      return  await prisma.follow.findMany({
+          where: { followerId: userId },
+          select: { followingId: true },
+    });
+  },
+  
 };

@@ -1,5 +1,5 @@
 import express from "express";
-import { createPost, deletePost, getAllPosts, getPostById, likeCount, likePost, savePost, savePostCount, updatePost } from "../controllers/post";
+import { createPost, deletePost, getAllPosts, getPersonalizedFeed, getPostById, likeCount, likePost, savePost, savePostCount, updatePost } from "../controllers/post";
 import auth from "../middlewares/auth";
 import { postExists } from "../middlewares/postAuthorization";
 import { PostModel } from "../models/post";
@@ -10,6 +10,7 @@ const router = express.Router();
 router.post("/createPost" , auth ,createPost )
 
 router.get("/", getAllPosts)
+router.get("/feed" , auth ,getPersonalizedFeed);
 router.get("/:id",postExists, getPostById);
 
 router.patch("/:id",auth ,postExists, canModifyResource(PostModel.findById), updatePost)

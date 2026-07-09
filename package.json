@@ -21,6 +21,7 @@
     "express": "^4.22.2",
     "express-session": "^1.19.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "redis": "^4.7.1",
     "uuid": "^14.0.1"
   },
@@ -28,8 +29,11 @@
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^4.17.25",
+    "@types/file-type": "^10.6.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.19.43",
+    "file-type": "^22.0.1",
     "prisma": "^6.19.3",
     "tsx": "^4.22.4",
     "typescript": "^5.9.3"

@@ -1,4 +1,3 @@
-
 export async function ToggleRelation<
         T extends {
             findUnique : Function;
@@ -15,5 +14,5 @@ export async function ToggleRelation<
             await model.create({data , });
             return {active : true};
 
-        }
+    }
     

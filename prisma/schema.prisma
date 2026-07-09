@@ -40,6 +40,8 @@ model User {
   likes     Like[]
   savedPosts SavedPost[]
 
+  isBanned   Boolean  @default(false)
+
   followers Follow[] @relation("followers")
   following Follow[] @relation("following")
 }

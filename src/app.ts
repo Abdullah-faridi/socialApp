@@ -7,6 +7,7 @@ import userRoutes from "./routes/user";
 import postRoutes from  "./routes/posts"
 import authRoutes from "./routes/auth"
 import commentRoutes from "./routes/comment"
+import adminRoutes from "./routes/admin"
 const app = express();
 const PORT = process.env.PORT ?? 5123;
 
@@ -19,6 +20,7 @@ app.use("/auth" , authRoutes)
 app.use("/user", userRoutes);
 app.use("/posts" ,postRoutes);
 app.use("/comments" ,commentRoutes )
+app.use("/admin" , adminRoutes)
 async function main(): Promise<void> {
   try {
     await prisma.$connect();

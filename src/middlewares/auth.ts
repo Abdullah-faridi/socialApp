@@ -28,6 +28,10 @@ async function auth(req: Request, res: Response, next: NextFunction){
           error: "Invalid user",});
       return;
     }
+    if (user.isBanned) {
+        throw new Error("Your account has been banned.");
+      }
+
     req.user = user;
     req.sessionId =decoded.sessionId;;
     next();

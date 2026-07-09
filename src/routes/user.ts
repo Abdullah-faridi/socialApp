@@ -9,12 +9,10 @@ import {
   followingList
 } from "../controllers/user";
 import auth from "../middlewares/auth"
-import { authorize, canEditUser } from "../middlewares/userAuthorization";
+import { canEditUser } from "../middlewares/userAuthorization";
 const router = express.Router();
 
 
-
-router.get("/allUsers", auth, authorize(["ADMIN", "MODERATOR"]), getAllUser);
 
 router.get("/:id", getUserPublicProfile);
 

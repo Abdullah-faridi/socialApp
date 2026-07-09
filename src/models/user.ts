@@ -1,6 +1,6 @@
 import { prisma } from "../config/db";
 import bcrypt from "bcrypt";
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { SafeUser } from "../types/user";
 import { PatchUser } from "../types/patch";
 
@@ -10,6 +10,7 @@ export const safeUserSelect = {
   email: true,
   profileImageURL: true,
   role: true,
+  isBanned : true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
@@ -119,10 +120,35 @@ export const UserModel = {
     })
   },
   async userFollows(userId :string){
-      return  await prisma.follow.findMany({
+      return prisma.follow.findMany({
           where: { followerId: userId },
           select: { followingId: true },
     });
   },
-  
+  async ban(userId : string){
+    return prisma.user.update({
+      where : {id : userId} , 
+      data : {
+        isBanned : true,
+      }
+    })
+  },
+  async unBan(userId : string){
+    return prisma.user.update({
+      where :  {id : userId}, 
+      data : {
+        isBanned : false,
+      }
+    })
+  },
+  async updateRole(userId : string , newRole : Role){
+    return prisma.user.update({
+      where : {
+        id  : userId,
+      },
+      data:{
+        role  :newRole,
+      }
+    })
+  }
 };

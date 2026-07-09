@@ -4,10 +4,10 @@ export interface SafeUser{
   email: string;
   profileImageURL: string;
   role: string;
+  isBanned : boolean;
   createdAt: Date;
   updatedAt: Date;
 };
-
 export interface publicUserProfile extends SafeUser{
   followers: number;
   following: number;

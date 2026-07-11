@@ -1,5 +1,6 @@
 export interface SafeUser{
   id: string;
+  username : string;
   fullName: string;
   email: string;
   profileImageURL: string;

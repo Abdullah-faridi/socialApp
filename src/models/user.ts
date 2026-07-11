@@ -7,6 +7,7 @@ import { PatchUser } from "../types/patch";
 export const safeUserSelect = {
   id: true,
   fullName: true,
+  username : true,
   email: true,
   profileImageURL: true,
   role: true,
@@ -29,7 +30,7 @@ export const publicProfileSelect = {
 export type UserWithPassword = SafeUser & { password: string };
 
 export const UserModel = {
-  async create(data: {fullName: string; email: string;password: string;}): Promise<SafeUser> {
+  async create(data: {fullName: string;username : string; email: string;password: string;}): Promise<SafeUser> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await prisma.user.create({
       data: { ...data, password: hashedPassword },

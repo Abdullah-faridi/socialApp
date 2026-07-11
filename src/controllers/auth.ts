@@ -7,18 +7,19 @@ import { getErrorMessage } from "../helper/error";
 
 export async function signUpController(req: Request,res: Response){
   try {
-    const { fullName, email, password } = req.body as {
+    const { fullName,username, email, password } = req.body as {
       fullName: string;
+      username : string;
       email: string;
       password: string;
     };
 
-    if (!fullName || !email || !password) {
+    if (!fullName || !email || !password || !username) {
       res.status(400).json({ error: "All fields required" });
       return;
     }
 
-    const user = await UserModel.create({ fullName, email, password });
+    const user = await UserModel.create({ fullName,username, email, password });
     res.status(201).json(user);
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) })

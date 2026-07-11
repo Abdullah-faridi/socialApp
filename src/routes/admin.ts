@@ -9,5 +9,5 @@ const router = express.Router();
 router.get("/users", auth, authorize(["ADMIN", "MODERATOR"]), getAllUser);
 router.patch("/users/:id/ban" , auth , authorize(["ADMIN"]) , banUser)
 router.patch("/users/:id/unban" , auth , authorize(["ADMIN"]) , banUser)
-router.patch("users/:id/role" , auth , authorize(["ADMIN"]) ,updateUserRole )
+router.patch("/users/:id/role" , auth , authorize(["ADMIN"]) ,updateUserRole )
 export default router;

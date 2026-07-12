@@ -1,19 +1,20 @@
-export interface SafeUser{
+export interface SafeUser {
   id: string;
-  username : string;
+  username: string;
   fullName: string;
   email: string;
-  profileImageURL: string;
+  profileImageURL: string?;
+  profileImageKey: string?;
   role: string;
-  isBanned : boolean;
+  isBanned: boolean;
   createdAt: Date;
   updatedAt: Date;
-};
-export interface publicUserProfile extends SafeUser{
+}
+export interface publicUserProfile extends SafeUser {
   followers: number;
   following: number;
   posts: number;
-} 
+}
 
 export interface UserWithFollowers extends SafeUser {
   followers: SafeUser[];

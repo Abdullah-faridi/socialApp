@@ -1,3 +1,3 @@
 export function getErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Server error"
+  return err instanceof Error ? err.message : "Server error";
 }

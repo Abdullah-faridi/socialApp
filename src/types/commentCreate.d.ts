@@ -1,4 +1,4 @@
-export interface Comment{
-    content  :string;
-    parentId : string?
+export interface Comment {
+  content: string;
+  parentId: string?;
 }

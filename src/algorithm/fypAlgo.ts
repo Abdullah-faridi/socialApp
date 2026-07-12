@@ -1,24 +1,24 @@
-import { Prisma } from "@prisma/client"
-import { UserModel } from "../models/user"
-import { LikeModel } from "../models/like"
-import { prisma } from "../config/db"
-import { getOrSet } from "../services/caching"
-import redisClient from "../config/redis"
+import { Prisma } from "@prisma/client";
+import { UserModel } from "../models/user";
+import { LikeModel } from "../models/like";
+import { prisma } from "../config/db";
+import { getOrSet } from "../services/caching";
+import redisClient from "../config/redis";
 export type PostWithRelations = Prisma.PostGetPayload<{
   include: {
     author: {
-      select: { id: true, fullName: true, profileImageURL: true }
-    },
+      select: { id: true; fullName: true; profileImageURL: true };
+    };
     _count: {
-      select: { likes: true, comments: true }
-    }
-  }
-}>
+      select: { likes: true; comments: true };
+    };
+  };
+}>;
 function calculateScore(
   post: PostWithRelations,
   now: number,
   likedAuthorIds: Set<string>,
-  followingIds: Set<string>
+  followingIds: Set<string>,
 ): { score: number; breakdown: string } {
   const isFollowing = followingIds.has(post.authorId);
   const followingScore = isFollowing ? 100 : 0;
@@ -44,28 +44,28 @@ function calculateScore(
   };
 
   const totalScore =
-    followingScore * WEIGHTS.following + 
+    followingScore * WEIGHTS.following +
     interactionScore * WEIGHTS.interaction +
     recencyScore * WEIGHTS.recency +
-    engagementScore * WEIGHTS.engagement + 
-    velocityScore * WEIGHTS.velocity; 
+    engagementScore * WEIGHTS.engagement +
+    velocityScore * WEIGHTS.velocity;
   const reasons = [];
 
   if (followingScore > 0)
     reasons.push(
-      `Following (+${(followingScore * WEIGHTS.following).toFixed(0)})`
+      `Following (+${(followingScore * WEIGHTS.following).toFixed(0)})`,
     );
 
   if (interactionScore > 0)
     reasons.push(
-      `Liked before (+${(interactionScore * WEIGHTS.interaction).toFixed(0)})`
+      `Liked before (+${(interactionScore * WEIGHTS.interaction).toFixed(0)})`,
     );
 
   reasons.push(`Recent (+${(recencyScore * WEIGHTS.recency).toFixed(1)})`);
 
   if (engagementScore > 2)
     reasons.push(
-      `Popular (+${(engagementScore * WEIGHTS.engagement).toFixed(1)})`
+      `Popular (+${(engagementScore * WEIGHTS.engagement).toFixed(1)})`,
     );
 
   if (velocityScore > 1)
@@ -76,160 +76,167 @@ function calculateScore(
   return { score: totalScore, breakdown };
 }
 
+export async function generateForYourPage(userId: string) {
+  const cacheKey = `feed:foryou:${userId}`;
+  const cachedFeed = await redisClient.get(cacheKey);
 
-export async function generateForYourPage(userId:string){
-    const cacheKey = `feed:foryou:${userId}`;
-    const cachedFeed = await redisClient.get(cacheKey);
+  if (cachedFeed) {
+    return JSON.parse(cachedFeed);
+  }
+  const now = Date.now();
+  const threeDaysAgo = new Date(now - 3 * 24 * 60 * 60 * 1000);
+  const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+  const oneHourAgo = new Date(now - 60 * 60 * 1000);
 
-    if(cachedFeed){
-      return JSON.parse(cachedFeed)
-    }
-    const now = Date.now();
-    const threeDaysAgo = new Date(now - 3 * 24 * 60 * 60 * 1000);
-    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
-    const oneHourAgo = new Date(now - 60 * 60 * 1000);
-    
-     const followingIds = await getOrSet(`user:following:${userId}` , 300 , async ()=> {
+  const followingIds = await getOrSet(
+    `user:following:${userId}`,
+    300,
+    async () => {
       const userFollows = await UserModel.userFollows(userId);
       return userFollows.map((f) => f.followingId);
-    });
-    
+    },
+  );
 
-    const likedData = await getOrSet(`user : likedAuthors:${userId}`,
-      300,
-      async ()=>{
-        const userLikes =await LikeModel.getUserLikes(userId);
-        return {
-          likedPostIds: userLikes.map((l) => l.postId),
-          likedAuthorIds: userLikes.map((l) => l.post.authorId),
-        }
-      }
-    )
-    const followingIdsSet = new Set(followingIds)
-    const likedPostIdsSet = new Set(likedData.likedPostIds)
-    const likedAuthorIdsSet = new Set(likedData.likedAuthorIds)
+  const likedData = await getOrSet(
+    `user : likedAuthors:${userId}`,
+    300,
+    async () => {
+      const userLikes = await LikeModel.getUserLikes(userId);
+      return {
+        likedPostIds: userLikes.map((l) => l.postId),
+        likedAuthorIds: userLikes.map((l) => l.post.authorId),
+      };
+    },
+  );
+  const followingIdsSet = new Set(followingIds);
+  const likedPostIdsSet = new Set(likedData.likedPostIds);
+  const likedAuthorIdsSet = new Set(likedData.likedAuthorIds);
 
-    const [followingPosts, popularPosts, recentPosts] = await Promise.all([
-        prisma.post.findMany({
-        where: {
-            author: {
-            followers: {
-                some: { followerId: userId },
-            },
-            },
-
-            createdAt: { gte: threeDaysAgo },
-            NOT:[
-              { id: { in: Array.from(likedPostIdsSet) } },
-               { authorId: userId } 
-            ] 
+  const [followingPosts, popularPosts, recentPosts] = await Promise.all([
+    prisma.post.findMany({
+      where: {
+        author: {
+          followers: {
+            some: { followerId: userId },
+          },
         },
-        take: 200,
-        orderBy: { createdAt: "desc" },
-        include: {
-            author: {
-            include: {
-                _count: { select: { followers: true } },
-                followers: {
-                where: { followerId: userId },
-                },
-            },
-            },
 
-            likes: {
-            where: { userId },
-            select: { userId: true },
-            },
-            _count: {
-            select: { likes: true, comments: true },
-            },
-        },
-        }),
-
-        prisma.post.findMany({
-        where: {
-            createdAt: { gte: oneDayAgo },
-            NOT: [
-              { id: { in: Array.from(likedPostIdsSet) } },
-               { authorId: userId }
-            ]
-        },
-        take: 100,
-        orderBy: [
-            { likes: { _count: "desc" } },
-            { comments: { _count: "desc" } },
+        createdAt: { gte: threeDaysAgo },
+        NOT: [
+          { id: { in: Array.from(likedPostIdsSet) } },
+          { authorId: userId },
         ],
+      },
+      take: 200,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          include: {
+            _count: { select: { followers: true } },
+            followers: {
+              where: { followerId: userId },
+            },
+          },
+        },
 
-        include: {
-            author: {
-            include: {
-                _count: { select: { followers: true } },
-                followers: {
-                where: { followerId: userId },
-                },
-            },
-            },
-            likes: {
-            where: { userId },
-            select: { userId: true },
-            },
-            _count: {
-            select: { likes: true, comments: true },
-            },
+        likes: {
+          where: { userId },
+          select: { userId: true },
         },
-        }),
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
+    }),
 
-        prisma.post.findMany({
-        where: {
-            createdAt: { gte: oneHourAgo },
-            NOT:[
-              { id: { in: Array.from(likedPostIdsSet) } },
-              { authorId: userId }
-            ] 
+    prisma.post.findMany({
+      where: {
+        createdAt: { gte: oneDayAgo },
+        NOT: [
+          { id: { in: Array.from(likedPostIdsSet) } },
+          { authorId: userId },
+        ],
+      },
+      take: 100,
+      orderBy: [
+        { likes: { _count: "desc" } },
+        { comments: { _count: "desc" } },
+      ],
+
+      include: {
+        author: {
+          include: {
+            _count: { select: { followers: true } },
+            followers: {
+              where: { followerId: userId },
+            },
+          },
         },
-        take: 100,
-        orderBy: { createdAt: "desc" },
-        include: {
-            author: {
-            include: {
-                _count: { select: { followers: true } },
-                followers: {
-                where: { followerId: userId },
-                },
-            },
-            },
-            likes: {
-            where: { userId },
-            select: { userId: true },
-            },
-            _count: {
-            select: { likes: true, comments: true },
-            },
+        likes: {
+          where: { userId },
+          select: { userId: true },
         },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
+    }),
+
+    prisma.post.findMany({
+      where: {
+        createdAt: { gte: oneHourAgo },
+        NOT: [
+          { id: { in: Array.from(likedPostIdsSet) } },
+          { authorId: userId },
+        ],
+      },
+      take: 100,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          include: {
+            _count: { select: { followers: true } },
+            followers: {
+              where: { followerId: userId },
+            },
+          },
+        },
+        likes: {
+          where: { userId },
+          select: { userId: true },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
     }),
   ]);
 
-  const allPosts = [...followingPosts , ...popularPosts ,...recentPosts];
-   const uniquePostMap = new Map<string, PostWithRelations>();
+  const allPosts = [...followingPosts, ...popularPosts, ...recentPosts];
+  const uniquePostMap = new Map<string, PostWithRelations>();
   allPosts.forEach((post) => {
-    if(!uniquePostMap.has(post.id)){
-         uniquePostMap.set(post.id, post as PostWithRelations);
+    if (!uniquePostMap.has(post.id)) {
+      uniquePostMap.set(post.id, post as PostWithRelations);
     }
-  })
+  });
   const candidates = Array.from(uniquePostMap.values());
-   const scoredPosts = candidates.map(post => {
-    const {score, breakdown} = calculateScore(post, now, likedAuthorIdsSet, followingIdsSet)
-    return{
+  const scoredPosts = candidates.map((post) => {
+    const { score, breakdown } = calculateScore(
+      post,
+      now,
+      likedAuthorIdsSet,
+      followingIdsSet,
+    );
+    return {
       ...post,
       score,
-      scoreBreakdown: breakdown
-    }
-  })
-    const result = scoredPosts.sort((a, b) => b.score - a.score).slice(0, 50);
-    if (result.length === 0) {
-       return { feed: [], source: "db" } 
-    }
-    await redisClient.set(cacheKey , JSON.stringify(result) , { EX:120 });
-    return result;
+      scoreBreakdown: breakdown,
+    };
+  });
+  const result = scoredPosts.sort((a, b) => b.score - a.score).slice(0, 50);
+  if (result.length === 0) {
+    return { feed: [], source: "db" };
+  }
+  await redisClient.set(cacheKey, JSON.stringify(result), { EX: 120 });
+  return result;
 }
-

@@ -1,15 +1,15 @@
 import { Request, Response } from "express";
 import { UserModel } from "../models/user";
 import { createTokenForUser } from "../services/auth";
-import {v7 as uuidv7} from "uuid"
+import { v7 as uuidv7 } from "uuid";
 import redisClient from "../config/redis";
 import { getErrorMessage } from "../helper/error";
 
-export async function signUpController(req: Request,res: Response){
+export async function signUpController(req: Request, res: Response) {
   try {
-    const { fullName,username, email, password } = req.body as {
+    const { fullName, username, email, password } = req.body as {
       fullName: string;
-      username : string;
+      username: string;
       email: string;
       password: string;
     };
@@ -19,14 +19,19 @@ export async function signUpController(req: Request,res: Response){
       return;
     }
 
-    const user = await UserModel.create({ fullName,username, email, password });
+    const user = await UserModel.create({
+      fullName,
+      username,
+      email,
+      password,
+    });
     res.status(201).json(user);
   } catch (err) {
-    res.status(500).json({ error: getErrorMessage(err) })
+    res.status(500).json({ error: getErrorMessage(err) });
   }
 }
 
-export async function signInController(req: Request,res: Response){
+export async function signInController(req: Request, res: Response) {
   try {
     const { email, password } = req.body as {
       email: string;
@@ -41,12 +46,12 @@ export async function signInController(req: Request,res: Response){
     const user = await UserModel.login(email, password);
     const sessionId = uuidv7();
     await redisClient.set(
-          `session:${sessionId}`,
-          JSON.stringify({
-            userId: user.id,
-          }),
-          { EX: 60 * 60 * 24 * 30 }
-      );
+      `session:${sessionId}`,
+      JSON.stringify({
+        userId: user.id,
+      }),
+      { EX: 60 * 60 * 24 * 30 },
+    );
     const token = createTokenForUser(user.id, sessionId);
     res.cookie("token", token, {
       httpOnly: true,
@@ -57,20 +62,18 @@ export async function signInController(req: Request,res: Response){
 
     res.status(200).json({ message: "Login success" });
   } catch (err) {
-    res.status(500).json({ error: getErrorMessage(err) })
+    res.status(500).json({ error: getErrorMessage(err) });
   }
 }
 
-export async function logoutController(req:Request , res:Response) {
+export async function logoutController(req: Request, res: Response) {
   if (!req.user) {
     res.status(401).json({
       error: "Unauthorized",
     });
     return;
   }
-  await redisClient.del(
-    `session:${req.sessionId}`
-  );
+  await redisClient.del(`session:${req.sessionId}`);
   res.clearCookie("token");
   res.status(200).json({
     message: "Logged out successfully",

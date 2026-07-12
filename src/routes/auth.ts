@@ -1,4 +1,8 @@
-import { signUpController,signInController ,logoutController} from "../controllers/auth";
+import {
+  signUpController,
+  signInController,
+  logoutController,
+} from "../controllers/auth";
 import express from "express";
 
 import auth from "../middlewares/auth";

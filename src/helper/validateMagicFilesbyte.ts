@@ -9,13 +9,7 @@ const IMAGE_MIMES = [
   "image/gif",
 ] as const;
 
-const IMAGE_EXTENSIONS = [
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "gif",
-] as const;
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif"] as const;
 
 const VIDEO_MIMES = [
   "video/mp4",
@@ -24,12 +18,7 @@ const VIDEO_MIMES = [
   "video/x-matroska",
 ] as const;
 
-const VIDEO_EXTENSIONS = [
-  "mp4",
-  "webm",
-  "mov",
-  "mkv",
-] as const;
+const VIDEO_EXTENSIONS = ["mp4", "webm", "mov", "mkv"] as const;
 
 const ALLOWED_TYPES = {
   image: {
@@ -38,21 +27,15 @@ const ALLOWED_TYPES = {
   },
 
   media: {
-    mimes: [
-      ...IMAGE_MIMES,
-      ...VIDEO_MIMES,
-    ],
-    extensions: [
-      ...IMAGE_EXTENSIONS,
-      ...VIDEO_EXTENSIONS,
-    ],
+    mimes: [...IMAGE_MIMES, ...VIDEO_MIMES],
+    extensions: [...IMAGE_EXTENSIONS, ...VIDEO_EXTENSIONS],
   },
 } as const;
 
 export async function validateFileMagicBytes(
   buffer: Buffer,
-  category: AllowedFileCategory
-): Promise<{ valid: boolean; reason?: string }> {
+  category: AllowedFileCategory,
+): Promise<{ valid: boolean; reason?: string; mime?: string; ext?: string }> {
   const detected = await fileTypeFromBuffer(buffer);
   if (!detected) {
     return {
@@ -71,5 +54,5 @@ export async function validateFileMagicBytes(
       reason: `File type ${detected.mime} is not allowed`,
     };
   }
-  return { valid: true };
+  return { valid: true, mime: detected.mime, ext: detected.ext };
 }

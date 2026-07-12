@@ -4,7 +4,7 @@ import { CommentModel } from "../models/comment";
 export async function commentExists(
   req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) {
   try {
     const comment = await CommentModel.findById(req.params.id);

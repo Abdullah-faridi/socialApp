@@ -7,6 +7,6 @@ export interface PatchUser {
   profileImageURL?: string;
 }
 
-export interface updatePost extends Partial<CreatePostInput>{}
+export interface updatePost extends Partial<CreatePostInput> {}
 
-export interface updateComment extends Partial<Comment>{}
+export interface updateComment extends Partial<Comment> {}

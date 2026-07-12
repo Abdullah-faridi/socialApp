@@ -1,22 +1,28 @@
 import express from "express";
 import {
-  getAllUser,
   getUserPublicProfile,
   UpdateUserProfile,
   FollowUser,
   unfollowUser,
   followerList,
-  followingList
+  followingList,
+  uploadAvatarController,
 } from "../controllers/user";
-import auth from "../middlewares/auth"
-import { canEditUser } from "../middlewares/userAuthorization";
+import auth from "../middlewares/auth";
+import { requireSelf } from "../middlewares/userAuthorization";
+import { uploadAvatar } from "../middlewares/uploadFile";
 const router = express.Router();
-
-
 
 router.get("/:id", getUserPublicProfile);
 
-router.patch("/:id", auth, canEditUser, UpdateUserProfile);
+router.patch("/:id", auth, requireSelf(), UpdateUserProfile);
+router.patch(
+  "/:id/avatar",
+  auth,
+  requireSelf(),
+  uploadAvatar,
+  uploadAvatarController,
+);
 
 router.post("/:id/follow", auth, FollowUser);
 router.delete("/:id/follow", auth, unfollowUser);

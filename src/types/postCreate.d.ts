@@ -1,8 +1,5 @@
-
 export type CreatePostInput = {
-  title: string
-  altText?: string
-  type: PostType
-  tags: string[]
-  imageUrls?: string[]
-}
+  title: string;
+  content: string;
+  tags: string[];
+};

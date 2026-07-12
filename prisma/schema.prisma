@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
   engineType = "binary"
+  previewFeatures = ["fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -13,12 +14,6 @@ enum Role {
   MODERATOR
 }
 
-enum PostType{
-  TEXT
-  IMAGE 
-  ARTICLE
-  RESOURCE
-}
 enum MediaType{
   IMAGE
   VIDEO 
@@ -31,6 +26,7 @@ model User {
   email           String   @unique
   password        String
   profileImageURL String   @default("/images/defaultpfp.jpg")
+  profileImageKey String?
   bio             String?
   role            Role   @default(USER)
   createdAt       DateTime @default(now())
@@ -58,14 +54,13 @@ model Follow{
 model Post {
   id        String   @id @default(cuid())
   authorId  String
-  type      PostType  @default(TEXT)
 
   title     String
-  altText   String?   @db.Text
-  imageUrls String[]  @default([])
+  content   String
   tags      String[]    @default([])
   
   author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
   comments  Comment[]
   likes     Like[]
   savedBy   SavedPost[]
@@ -86,8 +81,14 @@ model PostMedia{
    id        String   @id @default(cuid())
    postId   String
    url      String
+   key      String
+   mimeType String?
    mediaType  MediaType @default(IMAGE)
    altText String?
+
+   width     Int?
+   height    Int?
+   duration  Int?
 
    order     Int       @default(0)
    createdAt DateTime  @default(now())
@@ -142,4 +143,14 @@ model SavedPost {
   @@id([userId, postId])
   @@index([userId, createdAt(sort: Desc)])
   @@map("saved_posts")
+}
+
+model UnauthorizedAccessLog {
+  id        String   @id @default(cuid())
+  userId    String?          
+  route     String           
+  role      String?           
+  ipAddress String?
+  createdAt DateTime @default(now())
+  @@map("unauthorized_access_logs")
 }

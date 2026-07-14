@@ -194,3 +194,17 @@ export async function searchByKeyword(req: Request, res: Response) {
     res.status(500).json({ error: getErrorMessage(err) });
   }
 }
+
+export async function semanticSearch(req: Request, res: Response) {
+  const userQuery = req.query.q as string;
+  if (!userQuery || userQuery.trim().length === 0) {
+    res.status(400).json({ error: "Query is required" });
+    return;
+  }
+  try {
+    const posts = await PostModel.semanticSearch(userQuery.trim());
+    res.status(200).json({ posts });
+  } catch (err) {
+    res.status(500).json({ error: getErrorMessage(err) });
+  }
+}

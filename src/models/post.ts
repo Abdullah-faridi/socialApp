@@ -3,7 +3,19 @@ import { updatePost } from "../types/patch";
 import { Prisma } from "@prisma/client";
 import { CreatePostInput } from "../types/postCreate";
 import { Tsquery } from "pg-tsquery";
-const tsQueryParser = new Tsquery();
+import { generateEmbedding } from "../helper/generateEmbeddings";
+
+async function generateAndStoreEmbeddings(postId: string, text: string) {
+  const embedding = await generateEmbedding(text);
+  const vector = `[${embedding.join(",")}]`;
+
+  await prisma.$executeRaw`
+    UPDATE "posts"
+    SET embedding = ${vector}::vector
+    WHERE id = ${postId}
+  `;
+}
+
 export const PostModel = {
   async findAll(cursor?: string, limit: number = 20) {
     const posts = await prisma.post.findMany({
@@ -33,12 +45,19 @@ export const PostModel = {
     data: CreatePostInput,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return tx.post.create({
+    const post = await tx.post.create({
       data: {
         ...data,
         authorId,
       },
     });
+    generateAndStoreEmbeddings(
+      post.id,
+      `${post.title} ${post.content} ${post.tags.join(" ")}`,
+    );
+    // .catch((err) => console.error("Embedding generation failed:", err));
+
+    return post;
   },
   async update(postId: string, data: updatePost) {
     return prisma.post.update({ where: { id: postId }, data });
@@ -50,12 +69,21 @@ export const PostModel = {
     return prisma.post.delete({ where: { id: postId } });
   },
   async search(userQuery: string) {
-    const processedQuery = tsQueryParser.parseAndStringify(userQuery);
+    const processedQuery = userQuery
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .join(" & ");
     return prisma.post.findMany({
       where: {
         OR: [
           {
             content: {
+              search: processedQuery,
+            },
+          },
+          {
+            title: {
               search: processedQuery,
             },
           },
@@ -86,5 +114,45 @@ export const PostModel = {
       },
       take: 20,
     });
+  },
+  async semanticSearch(userQuery: string) {
+    const queryEmbedding = await generateEmbedding(userQuery);
+    const vectorString = `[${queryEmbedding.join(",")}]`;
+    const results = await prisma.$queryRaw<
+      { id: string; similarity: number }[]
+    >`
+    SELECT
+      id,
+      1 - (embedding <=> ${vectorString}::vector) AS similarity
+    FROM posts
+    WHERE embedding IS NOT NULL
+    AND (1 - (embedding <=> ${vectorString}::vector)) > 0.5
+    ORDER BY similarity DESC
+    LIMIT 10
+  `;
+    const postIds = results.map((r) => r.id);
+    if (postIds.length === 0) return [];
+    const posts = await prisma.post.findMany({
+      where: { id: { in: postIds } },
+      include: {
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageURL: true,
+          },
+        },
+        _count: {
+          select: { likes: true, comments: true },
+        },
+      },
+    });
+    const similarityMap = new Map(results.map((r) => [r.id, r.similarity]));
+    return posts
+      .map((post) => ({
+        ...post,
+        similarity: similarityMap.get(post.id),
+      }))
+      .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0));
   },
 };

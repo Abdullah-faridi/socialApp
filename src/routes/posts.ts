@@ -10,6 +10,7 @@ import {
   savePost,
   savePostCount,
   searchByKeyword,
+  semanticSearch,
   updatePost,
 } from "../controllers/post";
 import auth from "../middlewares/auth";
@@ -24,6 +25,8 @@ router.post("/createPost", auth, uploadPostMedia, createPost);
 
 router.get("/", getAllPosts);
 router.get("/feed", auth, getPersonalizedFeed);
+router.get("/search", searchByKeyword);
+router.get("/search/semantic", auth, semanticSearch);
 router.get("/:id", postExists, getPostById);
 
 router.patch(
@@ -50,5 +53,4 @@ router.get("/:id/save-count", postExists, savePostCount);
 router.get("/:id/comments", postExists, getComments);
 router.post("/:id/comments", auth, postExists, createComment);
 
-router.get("/search", searchByKeyword);
 export default router;

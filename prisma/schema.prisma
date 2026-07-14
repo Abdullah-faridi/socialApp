@@ -1,12 +1,13 @@
 generator client {
   provider = "prisma-client-js"
   engineType = "binary"
-  previewFeatures = ["fullTextSearchPostgres"]
+  previewFeatures = ["fullTextSearchPostgres" , "postgresqlExtensions"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]  
 }
 enum Role {
   USER
@@ -67,6 +68,7 @@ model Post {
   media     PostMedia[]
 
   searchVector Unsupported("tsvector")?
+  embedding  Unsupported("vector(1536)")?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

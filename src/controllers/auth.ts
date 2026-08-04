@@ -3,7 +3,7 @@ import { UserModel } from "../models/user";
 import { createTokenForUser } from "../services/auth";
 import { v7 as uuidv7 } from "uuid";
 import redisClient from "../config/redis";
-import { getErrorMessage } from "../helper/error";
+import { getErrorMessage } from "../utils/error";
 
 export async function signUpController(req: Request, res: Response) {
   try {

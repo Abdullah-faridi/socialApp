@@ -16,7 +16,7 @@ import {
 import auth from "../middlewares/auth";
 import { postExists } from "../middlewares/postAuthorization";
 import { PostModel } from "../models/post";
-import { canModifyResource } from "../helper/canModifyResources";
+import { canModifyResource } from "../utils/canModifyResources";
 import { getComments, createComment } from "../controllers/comment";
 import { uploadPostMedia } from "../middlewares/uploadFile";
 const router = express.Router();

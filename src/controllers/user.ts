@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
 import { UserModel } from "../models/user";
 import { PatchUser } from "../types/patch";
-import { getErrorMessage } from "../helper/error";
-import { invalidateFollowingCache } from "../helper/invalidateCache";
-import { validateFileMagicBytes } from "../helper/validateMagicFilesbyte";
+import { getErrorMessage } from "../utils/error";
+import { invalidateFollowingCache } from "../utils/invalidateCache";
+import { validateFileMagicBytes } from "../utils/validateMagicFilesbyte";
 import { uploadToR2 } from "../services/r2.services";
 import { deleteFromR2 } from "../services/r2.services";
 export async function getAllUser(req: Request, res: Response) {

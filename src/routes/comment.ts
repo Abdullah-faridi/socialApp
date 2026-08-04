@@ -1,7 +1,7 @@
 import express from "express";
 import { deleteComment, updateComment } from "../controllers/comment";
 import auth from "../middlewares/auth";
-import { canModifyResource } from "../helper/canModifyResources";
+import { canModifyResource } from "../utils/canModifyResources";
 import { CommentModel } from "../models/comment";
 import { commentExists } from "../middlewares/comment";
 

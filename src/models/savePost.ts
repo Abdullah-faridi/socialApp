@@ -1,5 +1,5 @@
 import { prisma } from "../config/db";
-import { ToggleRelation } from "../helper/toggle";
+import { ToggleRelation } from "../utils/toggle";
 
 export const savePostModel = {
   async add(postId: string, userId: string) {

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getErrorMessage } from "../helper/error";
+import { getErrorMessage } from "../utils/error";
 import { CommentModel } from "../models/comment";
 import { updateComment } from "../types/patch";
 export async function createComment(req: Request, res: Response) {

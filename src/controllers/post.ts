@@ -1,15 +1,15 @@
 import { PostModel } from "../models/post";
 import { Request, Response } from "express";
-import { getErrorMessage } from "../helper/error";
+import { getErrorMessage } from "../utils/error";
 import { updatePost } from "../types/patch";
 import { LikeModel } from "../models/like";
 import { savePostModel } from "../models/savePost";
-import { invalidateLikeCache } from "../helper/invalidateCache";
+import { invalidateLikeCache } from "../utils/invalidateCache";
 import { UserModel } from "../models/user";
-import { invalidateUserFeedsCache } from "../helper/invalidateCache";
+import { invalidateUserFeedsCache } from "../utils/invalidateCache";
 import { generateForYourPage } from "../algorithm/fypAlgo";
-import { paginateFeed } from "../helper/paginate";
-import { validateFileMagicBytes } from "../helper/validateMagicFilesbyte";
+import { paginateFeed } from "../utils/paginate";
+import { validateFileMagicBytes } from "../utils/validateMagicFilesbyte";
 import { uploadToR2 } from "../services/r2.services";
 import { PostMediaModel } from "../models/postMedia";
 

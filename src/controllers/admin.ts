@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getErrorMessage } from "../helper/error";
+import { getErrorMessage } from "../utils/error";
 import { UserModel } from "../models/user";
 export async function banUser(req: Request, res: Response) {
   try {

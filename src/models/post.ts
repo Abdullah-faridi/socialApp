@@ -3,7 +3,7 @@ import { updatePost } from "../types/patch";
 import { Prisma } from "@prisma/client";
 import { CreatePostInput } from "../types/postCreate";
 import { Tsquery } from "pg-tsquery";
-import { generateEmbedding } from "../helper/generateEmbeddings";
+import { generateEmbedding } from "../utils/generateEmbeddings";
 
 async function generateAndStoreEmbeddings(postId: string, text: string) {
   const embedding = await generateEmbedding(text);

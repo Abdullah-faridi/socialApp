@@ -102,6 +102,7 @@ export const PostModel = {
             profileImageURL: true,
           },
         },
+        media: true,
         _count: {
           select: {
             likes: true,
@@ -142,6 +143,7 @@ export const PostModel = {
             profileImageURL: true,
           },
         },
+        media: true,
         _count: {
           select: { likes: true, comments: true },
         },

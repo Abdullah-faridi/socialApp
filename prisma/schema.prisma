@@ -19,6 +19,10 @@ enum MediaType{
   IMAGE
   VIDEO 
 }
+enum RoomType{
+  PUBLIC
+  PRIVATE
+}
 
 model User {
   id              String   @id @default(cuid())
@@ -42,6 +46,11 @@ model User {
 
   followers Follow[] @relation("followers")
   following Follow[] @relation("following")
+
+  createdRooms  ChatRoom[]
+  roomMembers   RoomMember[]
+  messages      Message[]
+
 }
 model Follow{
   followerId String
@@ -155,4 +164,51 @@ model UnauthorizedAccessLog {
   ipAddress String?
   createdAt DateTime @default(now())
   @@map("unauthorized_access_logs")
+}
+
+model ChatRoom{
+     id String @id @default(cuid())
+     name String
+     slug String @unique
+     description String?
+     type        RoomType  @default(PUBLIC)
+     createdBy   String
+     createdAt   DateTime  @default(now())
+     updatedAt   DateTime  @updatedAt
+     creator   User             @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+     messages  Message[]
+     members   RoomMember[]
+
+     @@index([slug])
+     @@map("chat_rooms")
+}
+
+model RoomMember {
+  userId    String
+  roomId    String
+  joinedAt  DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roomId])   // composite — one membership per user per room
+  @@index([roomId])
+  @@index([userId])
+  @@map("room_members")
+}
+model Message {
+  id        String   @id @default(cuid())
+  roomId    String
+  senderId  String
+  content   String   @db.Text
+  isDeleted Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  sender User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([senderId])
+  @@map("messages")
 }

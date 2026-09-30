@@ -1,5 +1,6 @@
 import "dotenv/config";
 import express from "express";
+import { httpServer, app } from "./server";
 import cookieParser from "cookie-parser";
 import { prisma } from "./config/db";
 import redisClient from "./config/redis";
@@ -9,8 +10,8 @@ import authRoutes from "./routes/auth";
 import commentRoutes from "./routes/comment";
 import adminRoutes from "./routes/admin";
 import aiRoutes from "./routes/ai";
-const app = express();
-const PORT = process.env.PORT ?? 5123;
+import chatRoomRoutes from "./routes/chatRoom";
+const PORT = process.env.PORT;
 
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
@@ -22,6 +23,7 @@ app.use("/posts", postRoutes);
 app.use("/comments", commentRoutes);
 app.use("/admin", adminRoutes);
 app.use("/ai", aiRoutes);
+app.use("/room", chatRoomRoutes);
 async function main(): Promise<void> {
   try {
     await prisma.$connect();
@@ -29,8 +31,8 @@ async function main(): Promise<void> {
 
     await redisClient.connect();
 
-    app.listen(PORT, () => {
-      console.log(`Server started at http://localhost:${PORT}`);
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
     console.error("Startup error:", err);

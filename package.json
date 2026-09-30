@@ -31,6 +31,7 @@
     "multer": "^2.2.0",
     "pg-tsquery": "^8.4.2",
     "redis": "^4.7.1",
+    "socket.io": "^4.8.4",
     "uuid": "^14.0.1"
   },
   "devDependencies": {

@@ -19,12 +19,6 @@ export async function answerTopicQuestion(question: string) {
       relatedPosts: [],
     };
   }
-  if (uniquePosts.length === 0) {
-    return {
-      answer: "I couldn't find any posts related to your question.",
-      relatedPosts: [],
-    };
-  }
   const allChunks: string[] = [];
   for (const post of uniquePosts) {
     const text = `Title:${post.title}\n${post.content ?? ""}`;

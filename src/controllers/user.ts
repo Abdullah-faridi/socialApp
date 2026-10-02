@@ -6,6 +6,9 @@ import { invalidateFollowingCache } from "../utils/invalidateCache";
 import { validateFileMagicBytes } from "../utils/validateMagicFilesbyte";
 import { uploadToR2 } from "../services/r2.services";
 import { deleteFromR2 } from "../services/r2.services";
+import { io } from "../server";
+import { NotificationModel } from "../models/notification";
+import { NotificationType } from "@prisma/client";
 export async function getAllUser(req: Request, res: Response) {
   try {
     const users = await UserModel.findAll();
@@ -69,6 +72,21 @@ export async function FollowUser(req: Request, res: Response) {
 
     await UserModel.followUser(followerId as string, followingId);
     await invalidateFollowingCache(followerId);
+    await NotificationModel.create({
+      userId: followingId,
+      actorId: followerId,
+      type: NotificationType.FOLLOW,
+      entityId: followerId,
+      entityType: "user",
+    });
+
+    io.to(`user:${followingId}`).emit("notification", {
+      type: "follow",
+      actor: {
+        id: followerId,
+      },
+      entityId: followerId,
+    });
     res.status(200).json({
       message: "Followed successfully",
     });

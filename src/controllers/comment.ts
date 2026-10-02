@@ -1,7 +1,11 @@
+import { io } from "../server";
 import { Request, Response } from "express";
 import { getErrorMessage } from "../utils/error";
 import { CommentModel } from "../models/comment";
 import { updateComment } from "../types/patch";
+import { NotificationModel } from "../models/notification";
+import { NotificationType } from "@prisma/client";
+import { PostModel } from "../models/post";
 export async function createComment(req: Request, res: Response) {
   try {
     const { content, parentId } = req.body;
@@ -10,6 +14,22 @@ export async function createComment(req: Request, res: Response) {
     const comment = await CommentModel.create(postId, authorId, {
       content,
       parentId,
+    });
+    const post = await PostModel.findById(postId);
+    await NotificationModel.create({
+      userId: post!.authorId,
+      actorId: req.user!.id,
+      type: NotificationType.COMMENT,
+      entityId: req.params.postId,
+      entityType: "post",
+    });
+
+    io.to(`user:${post!.authorId}`).emit("notification", {
+      type: "comment",
+      actor: {
+        id: req.user!.id,
+      },
+      entityId: req.params.postId,
     });
     res.status(201).json({ comment });
   } catch (err) {

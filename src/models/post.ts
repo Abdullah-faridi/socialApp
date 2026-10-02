@@ -39,6 +39,16 @@ export const PostModel = {
       nextCursor: hasMore ? posts[posts.length - 1].id : null,
     };
   },
+  async findById(postId: string) {
+    return prisma.post.findUnique({
+      where: {
+        id: postId,
+      },
+      select: {
+        authorId: true,
+      },
+    });
+  },
 
   async create(
     authorId: string,
@@ -61,9 +71,6 @@ export const PostModel = {
   },
   async update(postId: string, data: updatePost) {
     return prisma.post.update({ where: { id: postId }, data });
-  },
-  async findById(postId: string) {
-    return prisma.post.findUnique({ where: { id: postId } });
   },
   async delete(postId: string) {
     return prisma.post.delete({ where: { id: postId } });

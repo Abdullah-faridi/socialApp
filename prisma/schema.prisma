@@ -23,6 +23,13 @@ enum RoomType{
   PUBLIC
   PRIVATE
 }
+enum NotificationType {
+  LIKE
+  COMMENT
+  FOLLOW
+  BAN
+  UNBAN
+}
 
 model User {
   id              String   @id @default(cuid())
@@ -51,6 +58,8 @@ model User {
   roomMembers   RoomMember[]
   messages      Message[]
 
+  notifications       Notification[] @relation("ReceivedNotifications")
+  createdNotifications Notification[] @relation("CreatedNotifications")
 }
 model Follow{
   followerId String
@@ -211,4 +220,25 @@ model Message {
   @@index([roomId, createdAt(sort: Desc)])
   @@index([senderId])
   @@map("messages")
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+
+  userId     String         
+  actorId    String          
+
+  type       NotificationType
+
+  entityId   String?          
+  entityType String?          
+
+  createdAt  DateTime         @default(now())
+  readAt     DateTime?
+
+  user       User             @relation("ReceivedNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor      User             @relation("CreatedNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([actorId])
 }

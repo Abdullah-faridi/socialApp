@@ -1,3 +1,4 @@
+import { io } from "../server";
 import { PostModel } from "../models/post";
 import { Request, Response } from "express";
 import { getErrorMessage } from "../utils/error";
@@ -12,6 +13,8 @@ import { paginateFeed } from "../utils/paginate";
 import { validateFileMagicBytes } from "../utils/validateMagicFilesbyte";
 import { uploadToR2 } from "../services/r2.services";
 import { PostMediaModel } from "../models/postMedia";
+import { NotificationModel } from "../models/notification";
+import { NotificationType } from "@prisma/client";
 
 export async function createPost(req: Request, res: Response) {
   const { title, content, tags } = req.body;
@@ -128,9 +131,29 @@ export async function likePost(req: Request, res: Response) {
   try {
     const postId = req.params.id;
     const userId = req.user!.id;
+
     const toggle = await LikeModel.add(postId, userId);
+    const post = await PostModel.findById(postId);
+
     await invalidateLikeCache(userId);
+
     if (toggle.saved) {
+      await NotificationModel.create({
+        userId: post!.authorId,
+        actorId: userId,
+        type: NotificationType.LIKE,
+        entityId: postId,
+        entityType: "post",
+      });
+
+      io.to(`user:${post!.authorId}`).emit("notification", {
+        type: "like",
+        actor: {
+          id: userId,
+        },
+        entityId: postId,
+      });
+
       res.status(200).json({ message: "Liked" });
     } else {
       res.status(200).json({ message: "unliked" });

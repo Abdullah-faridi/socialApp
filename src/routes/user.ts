@@ -11,6 +11,7 @@ import {
 import auth from "../middlewares/auth";
 import { requireSelf } from "../middlewares/userAuthorization";
 import { uploadAvatar } from "../middlewares/uploadFile";
+import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 
 router.get("/:id", getUserPublicProfile);
@@ -20,6 +21,7 @@ router.patch(
   "/:id/avatar",
   auth,
   requireSelf(),
+  rateLimit("avatar-upload", 10, 3600),
   uploadAvatar,
   uploadAvatarController,
 );

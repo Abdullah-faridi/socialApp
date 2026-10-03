@@ -5,13 +5,14 @@ export async function postExists(
   res: Response,
   next: NextFunction,
 ) {
-  const post = await PostModel.findById(req.params.id);
-  if (!post) {
-    res.status(404).json({
-      error: "Post not found",
-    });
-    return;
+  try {
+    const post = await PostModel.findById(req.params.id);
+    if (!post) {
+      res.status(404).json({ error: "Post not found" });
+      return;
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  req.post = post;
-  next();
 }

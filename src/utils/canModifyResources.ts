@@ -8,7 +8,13 @@ export function canModifyResource<T extends Resource>(
   allowAdmin = false,
 ) {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const resource = await findById(req.params.id);
+    let resource: T;
+    try {
+      resource = await findById(req.params.id);
+    } catch (error) {
+      next(error);
+      return;
+    }
     if (!resource) {
       return res.status(404).json({
         error: "Resource not found",

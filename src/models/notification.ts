@@ -21,6 +21,10 @@ export const NotificationModel = {
       orderBy: {
         createdAt: "desc",
       },
+      take: 100,
+      include: {
+        actor: { select: { id: true, username: true, fullName: true, profileImageURL: true } },
+      },
     });
   },
   async markAsRead(id: string, userId: string) {

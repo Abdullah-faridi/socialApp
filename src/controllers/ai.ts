@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
 import { getErrorMessage } from "../utils/error";
 import { aiQueue } from "../queues/ai";
+import { getJob } from "../services/aiJobs";
 export async function askTopicQuestion(req: Request, res: Response) {
   const { question } = req.body;
-  if (!question || question.trim().length === 0) {
+  if (typeof question !== "string" || question.trim().length === 0) {
     res.status(400).json({ error: "Question is required" });
     return;
   }
@@ -32,6 +33,20 @@ export async function askTopicQuestion(req: Request, res: Response) {
     });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
+  }
+}
+
+export async function getAiJobStatus(req: Request, res: Response) {
+  try {
+    const result = await getJob(req.params.jobId);
+    if (!result || result.userId !== req.user!.id) {
+      res.status(404).json({ error: "Job not found" });
+      return;
+    }
+    res.status(200).json(result);
+  } catch (err) {
+    console.error("Failed to retrieve AI job:", err);
+    res.status(500).json({ error: "Unable to retrieve job status" });
   }
 }
 

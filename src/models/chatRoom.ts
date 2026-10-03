@@ -73,6 +73,13 @@ export const ChatRoomModel = {
 
     return { alreadyMember: false };
   },
+  async addMember(userId: string, roomId: string) {
+    return prisma.roomMember.upsert({
+      where: { userId_roomId: { userId, roomId } },
+      create: { userId, roomId },
+      update: {},
+    });
+  },
   async leaveRoom(userId: string, roomId: string) {
     const room = await prisma.chatRoom.findUnique({
       where: { id: roomId },

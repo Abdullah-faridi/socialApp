@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { validateToken } from "../services/auth";
 import redisClient from "../config/redis";
 import { prisma } from "../config/db";
-import { safeUserSelect } from "../models/user";
+import { authenticatedUserSelect } from "../models/user";
 
 async function auth(req: Request, res: Response, next: NextFunction) {
   try {
@@ -22,9 +22,13 @@ async function auth(req: Request, res: Response, next: NextFunction) {
       return;
     }
     const { userId } = JSON.parse(session);
+    if (!userId || userId !== decoded.userId) {
+      res.status(401).json({ error: "Invalid session" });
+      return;
+    }
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: safeUserSelect,
+      select: authenticatedUserSelect,
     });
     if (!user) {
       res.status(404).json({
@@ -33,14 +37,24 @@ async function auth(req: Request, res: Response, next: NextFunction) {
       return;
     }
     if (user.isBanned) {
-      throw new Error("Your account has been banned.");
+      await redisClient.del(`session:${decoded.sessionId}`);
+      res.status(403).json({ error: "Account is banned" });
+      return;
     }
 
     req.user = user;
     req.sessionId = decoded.sessionId;
     next();
-  } catch {
-    res.status(401).json({ error: "Invalid token" });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      res.status(401).json({ error: "Invalid session" });
+      return;
+    }
+    if (error instanceof Error && error.name === "JsonWebTokenError") {
+      res.status(401).json({ error: "Invalid token" });
+      return;
+    }
+    next(error);
   }
 }
 

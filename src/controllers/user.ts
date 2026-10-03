@@ -34,6 +34,23 @@ export async function getUserPublicProfile(req: Request, res: Response) {
 export async function UpdateUserProfile(req: Request, res: Response) {
   const userId = req.params.id;
   const updates = req.body as PatchUser;
+  const keys = Object.keys(req.body ?? {});
+  if (!keys.length || keys.some((key) => !["fullName", "email", "password"].includes(key))) {
+    res.status(400).json({ error: "Only fullName, email, and password may be updated" });
+    return;
+  }
+  if (updates.fullName !== undefined && (typeof updates.fullName !== "string" || !updates.fullName.trim() || updates.fullName.length > 120)) {
+    res.status(400).json({ error: "Invalid full name" });
+    return;
+  }
+  if (updates.email !== undefined && (typeof updates.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.email.trim()))) {
+    res.status(400).json({ error: "Invalid email address" });
+    return;
+  }
+  if (updates.password !== undefined && (typeof updates.password !== "string" || updates.password.length < 10 || updates.password.length > 128)) {
+    res.status(400).json({ error: "Password must be between 10 and 128 characters" });
+    return;
+  }
   try {
     const user = await UserModel.update(userId, updates);
     if (!user) {
@@ -42,6 +59,10 @@ export async function UpdateUserProfile(req: Request, res: Response) {
     }
     res.status(200).json(user);
   } catch (err) {
+    if ((err as { code?: string }).code === "P2002") {
+      res.status(409).json({ error: "Email is already in use" });
+      return;
+    }
     res.status(500).json({ error: getErrorMessage(err) });
   }
 }
@@ -100,6 +121,7 @@ export async function unfollowUser(req: Request, res: Response) {
     const followerId = req.user?.id;
     const followingId = req.params.id;
     await UserModel.unfollowUser(followerId as string, followingId);
+    await invalidateFollowingCache(followerId as string);
     res.status(200).json({
       message: "unFollowed successfully",
     });
@@ -130,13 +152,14 @@ export async function followingList(req: Request, res: Response) {
 }
 
 export async function uploadAvatarController(req: Request, res: Response) {
+  let uploadedKey: string | undefined;
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const [check, existingUser] = await Promise.all([
+    const [check, existingAvatarKey] = await Promise.all([
       validateFileMagicBytes(req.file.buffer, "image"),
-      UserModel.findByIdPublic(req.user!.id),
+      UserModel.findAvatarKey(req.user!.id),
     ]);
     if (!check.valid) {
       return res.status(400).json({ error: check.reason });
@@ -147,14 +170,16 @@ export async function uploadAvatarController(req: Request, res: Response) {
       check.ext!,
       "avatar",
     );
+    uploadedKey = key;
     const updatedUser = await UserModel.updateAvatar(req.user!.id, url, key);
-    if (existingUser?.profileImageKey) {
-      deleteFromR2(existingUser.profileImageKey).catch((err) =>
+    if (existingAvatarKey) {
+      deleteFromR2(existingAvatarKey).catch((err) =>
         console.error("Failed to delete old avatar:", err),
       );
     }
     return res.status(200).json({ success: true, url, key, user: updatedUser });
   } catch (err) {
+    if (uploadedKey) await deleteFromR2(uploadedKey).catch((cleanupError) => console.error("Failed to clean up uploaded avatar:", cleanupError));
     res.status(500).json({ error: getErrorMessage(err) });
   }
 }

@@ -10,7 +10,15 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
 
   console.log(`User connected: ${fullName} (${userId})`);
   socket.join(userId);
-  socket.on("join_room", async ({ roomId }: { roomId: string }) => {
+  const onAsync = (event: string, handler: (...args: any[]) => Promise<void>) => {
+    socket.on(event, (...args: any[]) => {
+      void handler(...args).catch((error: unknown) => {
+        console.error(`Socket event ${event} failed:`, error);
+        socket.emit("error", { message: "Request failed" });
+      });
+    });
+  };
+  onAsync("join_room", async ({ roomId }: { roomId: string }) => {
     const room = await ChatRoomModel.findById(roomId);
     if (!room) {
       socket.emit("error", { message: "Room not found" });
@@ -37,7 +45,8 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
     });
     console.log(`${fullName} joined room ${roomId}`);
   });
-  socket.on("leave_room", async ({ roomId }: { roomId: string }) => {
+  onAsync("leave_room", async ({ roomId }: { roomId: string }) => {
+    if (typeof roomId !== "string" || !socket.rooms.has(roomId)) return;
     await socket.leave(roomId);
 
     socket.to(roomId).emit("user_left", {
@@ -48,7 +57,7 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
 
     console.log(`${fullName} left room ${roomId}`);
   });
-  socket.on(
+  onAsync(
     "send_message",
     async ({ roomId, content }: { roomId: string; content: string }) => {
       if (!content || content.trim().length === 0) {
@@ -75,7 +84,7 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
       });
     },
   );
-  socket.on(
+  onAsync(
     "delete_message",
     async ({ messageId, roomId }: { messageId: string; roomId: string }) => {
       const message = await MessageModel.findById(messageId);
@@ -90,16 +99,20 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
         });
         return;
       }
+      if (!(await ChatRoomModel.isMember(userId, message.roomId))) {
+        socket.emit("error", { message: "Not a member of this room" });
+        return;
+      }
 
       await MessageModel.softDelete(messageId);
-      io.to(roomId).emit("message_deleted", {
+      io.to(message.roomId).emit("message_deleted", {
         messageId,
-        roomId,
+        roomId: message.roomId,
         content: "This message was deleted",
       });
     },
   );
-  socket.on(
+  onAsync(
     "load_more_messages",
     async ({ roomId, cursor }: { roomId: string; cursor: string }) => {
       const isMember = await ChatRoomModel.isMember(userId, roomId);
@@ -115,7 +128,9 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
       });
     },
   );
-  socket.on("user_typing", ({ roomId }: { roomId: string }) => {
+  socket.on("user_typing", (payload: { roomId?: string } | undefined) => {
+    const roomId = payload?.roomId;
+    if (typeof roomId !== "string" || !socket.rooms.has(roomId)) return;
     socket.to(roomId).emit("typing_indicator", {
       userId,
       fullName,
@@ -131,14 +146,21 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
     socket.broadcast.emit("user_online", { userId });
   }
   socket.on("disconnect", async () => {
-    await redisClient.del(`presence:${userId}`);
-    socket.broadcast.emit("user_offline", { userId });
-    console.log(`${fullName} disconnected`);
+    try {
+      const sockets = await io.in(userId).fetchSockets();
+      if (!sockets.length) {
+        await redisClient.del(`presence:${userId}`);
+        socket.broadcast.emit("user_offline", { userId });
+      }
+      console.log(`${fullName} disconnected`);
+    } catch (error) {
+      console.error("Failed to clear online presence:", error);
+    }
   });
-  socket.on("heartbeat", async () => {
+  onAsync("heartbeat", async () => {
     await redisClient.set(`presence:${userId}`, "1", {
       EX: 30,
     });
   });
-  setUserOnline();
+  void setUserOnline().catch((error) => console.error("Failed to set online presence:", error));
 }

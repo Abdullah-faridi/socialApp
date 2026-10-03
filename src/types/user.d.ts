@@ -2,11 +2,11 @@ export interface SafeUser {
   id: string;
   username: string;
   fullName: string;
-  email: string;
-  profileImageURL: string?;
-  profileImageKey: string?;
-  role: string;
-  isBanned: boolean;
+  email?: string;
+  profileImageURL: string | null;
+  profileImageKey?: string | null;
+  role?: string;
+  isBanned?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

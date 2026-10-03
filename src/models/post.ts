@@ -16,6 +16,10 @@ async function generateAndStoreEmbeddings(postId: string, text: string) {
   `;
 }
 
+export function indexPost(post: { id: string; title: string; content: string; tags: string[] }) {
+  return generateAndStoreEmbeddings(post.id, `${post.title} ${post.content} ${post.tags.join(" ")}`);
+}
+
 export const PostModel = {
   async findAll(cursor?: string, limit: number = 20) {
     const posts = await prisma.post.findMany({
@@ -29,6 +33,7 @@ export const PostModel = {
         _count: {
           select: { likes: true, comments: true },
         },
+        media: true,
       },
     });
     const hasMore = posts.length > limit;
@@ -49,6 +54,16 @@ export const PostModel = {
       },
     });
   },
+  async findFullById(postId: string) {
+    return prisma.post.findUnique({
+      where: { id: postId },
+      include: {
+        author: { select: { id: true, fullName: true, username: true, profileImageURL: true } },
+        media: { orderBy: { order: "asc" } },
+        _count: { select: { likes: true, comments: true } },
+      },
+    });
+  },
 
   async create(
     authorId: string,
@@ -61,16 +76,12 @@ export const PostModel = {
         authorId,
       },
     });
-    generateAndStoreEmbeddings(
-      post.id,
-      `${post.title} ${post.content} ${post.tags.join(" ")}`,
-    );
-    // .catch((err) => console.error("Embedding generation failed:", err));
-
     return post;
   },
   async update(postId: string, data: updatePost) {
-    return prisma.post.update({ where: { id: postId }, data });
+    const post = await prisma.post.update({ where: { id: postId }, data });
+    void indexPost(post).catch((error) => console.error("Embedding refresh failed:", error));
+    return post;
   },
   async delete(postId: string) {
     return prisma.post.delete({ where: { id: postId } });
@@ -78,9 +89,11 @@ export const PostModel = {
   async search(userQuery: string) {
     const processedQuery = userQuery
       .trim()
-      .split(" ")
+      .split(/\s+/)
+      .map((term) => term.replace(/[^\p{L}\p{N}_]/gu, ""))
       .filter(Boolean)
       .join(" & ");
+    if (!processedQuery) return [];
     return prisma.post.findMany({
       where: {
         OR: [

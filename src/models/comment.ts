@@ -4,7 +4,7 @@ import { updateComment } from "../types/patch";
 
 export const CommentModel = {
   async create(postId: string, authorId: string, data: Comment) {
-    await prisma.comment.create({
+    return prisma.comment.create({
       data: {
         ...data,
         authorId,
@@ -31,6 +31,11 @@ export const CommentModel = {
               fullName: true,
               profileImageURL: true,
             },
+          },
+          replies: {
+            where: { isDeleted: false },
+            orderBy: { createdAt: "asc" },
+            include: { author: { select: { id: true, fullName: true, profileImageURL: true } } },
           },
         },
       }),

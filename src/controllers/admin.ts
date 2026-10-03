@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { getErrorMessage } from "../utils/error";
 import { UserModel } from "../models/user";
 import { NotificationModel } from "../models/notification";
-import { NotificationType } from "@prisma/client";
+import { NotificationType, Role } from "@prisma/client";
 import { io } from "../server";
 export async function banUser(req: Request, res: Response) {
   try {
@@ -23,6 +23,7 @@ export async function banUser(req: Request, res: Response) {
       },
       entityId: userId,
     });
+    io.in(`user:${userId}`).disconnectSockets(true);
 
     res.status(200).json(bannedUser);
   } catch (err) {
@@ -57,8 +58,12 @@ export async function updateUserRole(req: Request, res: Response) {
   try {
     const userId = req.params.id;
     const { role } = req.body;
+    if (typeof role !== "string" || !["USER", "ADMIN", "MODERATOR"].includes(role)) {
+      res.status(400).json({ error: "Invalid role" });
+      return;
+    }
 
-    const user = await UserModel.updateRole(userId, role);
+    const user = await UserModel.updateRole(userId, role as Role);
 
     res.status(200).json(user);
   } catch (err) {

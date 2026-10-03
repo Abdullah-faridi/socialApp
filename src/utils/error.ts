@@ -1,3 +1,4 @@
 export function getErrorMessage(err: unknown): string {
-  return err instanceof Error ? err.message : "Server error";
+  console.error("Request failed:", err);
+  return "Internal server error";
 }

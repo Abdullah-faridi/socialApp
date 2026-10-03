@@ -9,7 +9,7 @@ export function authorize(roles: string[]) {
       return;
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!req.user.role || !roles.includes(req.user.role)) {
       prisma.unauthorizedAccessLog
         .create({
           data: {

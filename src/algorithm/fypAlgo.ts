@@ -98,7 +98,7 @@ export async function generateForYourPage(userId: string) {
   );
 
   const likedData = await getOrSet(
-    `user : likedAuthors:${userId}`,
+    `user:likedAuthors:${userId}`,
     300,
     async () => {
       const userLikes = await LikeModel.getUserLikes(userId);
@@ -146,6 +146,7 @@ export async function generateForYourPage(userId: string) {
         _count: {
           select: { likes: true, comments: true },
         },
+        media: true,
       },
     }),
 
@@ -179,6 +180,7 @@ export async function generateForYourPage(userId: string) {
         _count: {
           select: { likes: true, comments: true },
         },
+        media: true,
       },
     }),
 
@@ -208,6 +210,7 @@ export async function generateForYourPage(userId: string) {
         _count: {
           select: { likes: true, comments: true },
         },
+        media: true,
       },
     }),
   ]);

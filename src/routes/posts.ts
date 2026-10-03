@@ -19,9 +19,10 @@ import { PostModel } from "../models/post";
 import { canModifyResource } from "../utils/canModifyResources";
 import { getComments, createComment } from "../controllers/comment";
 import { uploadPostMedia } from "../middlewares/uploadFile";
+import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 
-router.post("/createPost", auth, uploadPostMedia, createPost);
+router.post("/createPost", auth, rateLimit("post-upload", 10, 60), uploadPostMedia, createPost);
 
 router.get("/", getAllPosts);
 router.get("/feed", auth, getPersonalizedFeed);

@@ -8,13 +8,20 @@ export const safeUserSelect = {
   id: true,
   fullName: true,
   username: true,
-  email: true,
   profileImageURL: true,
-  profileImageKey: true,
-  role: true,
-  isBanned: true,
   createdAt: true,
   updatedAt: true,
+} satisfies Prisma.UserSelect;
+
+export const authenticatedUserSelect = {
+  ...safeUserSelect,
+  email: true,
+  role: true,
+  isBanned: true,
+} satisfies Prisma.UserSelect;
+
+const privateSafeUserSelect = {
+  ...authenticatedUserSelect,
 } satisfies Prisma.UserSelect;
 
 export const publicProfileSelect = {
@@ -40,7 +47,7 @@ export const UserModel = {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await prisma.user.create({
       data: { ...data, password: hashedPassword },
-      select: safeUserSelect,
+      select: authenticatedUserSelect,
     });
     return user;
   },
@@ -55,7 +62,7 @@ export const UserModel = {
 
   async findAll(): Promise<SafeUser[]> {
     return prisma.user.findMany({
-      select: safeUserSelect,
+      select: authenticatedUserSelect,
     });
   },
 
@@ -65,6 +72,13 @@ export const UserModel = {
       select: safeUserSelect,
     });
   },
+  async findAvatarKey(userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { profileImageKey: true },
+    });
+    return user?.profileImageKey ?? null;
+  },
 
   async update(userId: string, data: PatchUser) {
     if (data.password) {
@@ -72,8 +86,8 @@ export const UserModel = {
     }
     return prisma.user.update({
       where: { id: userId },
-      data,
-      select: safeUserSelect,
+      data: { ...data, ...(data.email ? { email: data.email.trim().toLowerCase() } : {}) },
+      select: privateSafeUserSelect,
     });
   },
 
@@ -145,6 +159,7 @@ export const UserModel = {
       data: {
         isBanned: true,
       },
+      select: authenticatedUserSelect,
     });
   },
   async unBan(userId: string) {
@@ -153,6 +168,7 @@ export const UserModel = {
       data: {
         isBanned: false,
       },
+      select: authenticatedUserSelect,
     });
   },
   async updateRole(userId: string, newRole: Role) {
@@ -163,6 +179,7 @@ export const UserModel = {
       data: {
         role: newRole,
       },
+      select: authenticatedUserSelect,
     });
   },
   async updateAvatar(userId: string, url: string, key: string) {
@@ -172,6 +189,7 @@ export const UserModel = {
         profileImageURL: url,
         profileImageKey: key,
       },
+      select: safeUserSelect,
     });
   },
 };

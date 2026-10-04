@@ -123,21 +123,35 @@ async function main(): Promise<void> {
 }
 
 let shutdownPromise: Promise<void> | undefined;
+
 function shutdown(signal: string): Promise<void> {
   if (shutdownPromise) return shutdownPromise;
+
   console.log(`Received ${signal}; shutting down gracefully`);
+
   const timeout = setTimeout(() => {
     console.error("Graceful shutdown timed out");
     process.exit(1);
   }, 30000);
-  timeout.unref();
+
   shutdownPromise = new Promise<void>((resolve) => {
-    io.close(() => resolve());
-  })
-    .then(closeDependencies)
-    .finally(() => {
-      clearTimeout(timeout);
+    console.log("Closing Socket.IO...");
+
+    io.close(() => {
+      console.log("Socket.IO closed");
+      resolve();
     });
+  })
+    .then(() => {
+      console.log("Closing dependencies...");
+      return closeDependencies();
+    })
+    .finally(() => {
+      console.log("Shutdown complete");
+      clearTimeout(timeout);
+      process.exit(0);
+    });
+
   return shutdownPromise;
 }
 

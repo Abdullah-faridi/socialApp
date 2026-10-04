@@ -10,7 +10,10 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
 
   console.log(`User connected: ${fullName} (${userId})`);
   socket.join(userId);
-  const onAsync = (event: string, handler: (...args: any[]) => Promise<void>) => {
+  const onAsync = (
+    event: string,
+    handler: (...args: any[]) => Promise<void>,
+  ) => {
     socket.on(event, (...args: any[]) => {
       void handler(...args).catch((error: unknown) => {
         console.error(`Socket event ${event} failed:`, error);
@@ -89,7 +92,7 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
     async ({ messageId, roomId }: { messageId: string; roomId: string }) => {
       const message = await MessageModel.findById(messageId);
 
-      if (!message) {
+      if (!message || message.roomId !== roomId) {
         socket.emit("error", { message: "Message not found" });
         return;
       }
@@ -108,7 +111,52 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
       io.to(message.roomId).emit("message_deleted", {
         messageId,
         roomId: message.roomId,
-        content: "This message was deleted",
+      });
+    },
+  );
+  onAsync(
+    "edit_message",
+    async ({
+      messageId,
+      roomId,
+      content,
+    }: {
+      messageId: string;
+      roomId: string;
+      content: string;
+    }) => {
+      if (typeof content !== "string" || !content.trim()) {
+        socket.emit("error", { message: "Message cannot be empty" });
+        return;
+      }
+      if (content.length > 1000) {
+        socket.emit("error", { message: "Message too long" });
+        return;
+      }
+      const message = await MessageModel.findById(messageId);
+      if (!message || message.roomId !== roomId) {
+        socket.emit("error", { message: "Message not found" });
+        return;
+      }
+      if (message.senderId !== userId) {
+        socket.emit("error", {
+          message: "You can only edit your own messages",
+        });
+        return;
+      }
+      if (!(await ChatRoomModel.isMember(userId, roomId))) {
+        socket.emit("error", { message: "Not a member of this room" });
+        return;
+      }
+      const result = await MessageModel.edit(messageId, content.trim());
+      if (result.count === 0) {
+        socket.emit("error", { message: "Message not found" });
+        return;
+      }
+      io.to(roomId).emit("message_edited", {
+        messageId,
+        roomId,
+        content: content.trim(),
       });
     },
   );
@@ -162,5 +210,7 @@ export function registerChatHandlers(io: Server, socket: AuthenticatedSocket) {
       EX: 30,
     });
   });
-  void setUserOnline().catch((error) => console.error("Failed to set online presence:", error));
+  void setUserOnline().catch((error) =>
+    console.error("Failed to set online presence:", error),
+  );
 }

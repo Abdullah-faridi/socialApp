@@ -2,6 +2,10 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { answerTopicQuestion, summarizePost } from "../services/ai.services";
 import { bullmqConnection } from "../config/bullmq";
+import { prisma } from "../config/db";
+import { validateWorkerEnvironment } from "../config/env";
+
+validateWorkerEnvironment();
 
 const aiWorker = new Worker(
   "ai",
@@ -62,13 +66,45 @@ aiWorker.on("error", (error) => {
 });
 
 async function shutdown() {
+  if (shutdownPromise) return shutdownPromise;
   console.log("Shutting down AI worker...");
-
-  await aiWorker.close();
-  await bullmqConnection.quit();
-
-  process.exit(0);
+  const timeout = setTimeout(() => {
+    console.error("AI worker shutdown timed out");
+    process.exit(1);
+  }, 30000);
+  timeout.unref();
+  shutdownPromise = (async () => {
+    const workerResult = await Promise.allSettled([aiWorker.close()]);
+    workerResult.forEach((result) => {
+      if (result.status === "rejected")
+        console.error("Failed to close AI worker:", result.reason);
+    });
+    const resourceResults = await Promise.allSettled([
+      prisma.$disconnect(),
+      bullmqConnection.status === "end"
+        ? Promise.resolve()
+        : bullmqConnection.quit(),
+    ]);
+    resourceResults.forEach((result) => {
+      if (result.status === "rejected")
+        console.error("Failed to close AI worker resource:", result.reason);
+    });
+  })().finally(() => clearTimeout(timeout));
+  return shutdownPromise;
 }
 
-process.on("SIGTERM", shutdown);
-process.on("SIGINT", shutdown);
+let shutdownPromise: Promise<void> | undefined;
+async function main() {
+  try {
+    await Promise.all([prisma.$connect(), aiWorker.waitUntilReady()]);
+    console.log("AI worker is ready");
+  } catch (error) {
+    console.error("AI worker startup failed:", error);
+    await shutdown();
+    process.exitCode = 1;
+  }
+}
+
+process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => void shutdown());
+void main();

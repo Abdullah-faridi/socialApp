@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { UserModel } from "../models/user";
+import { PostModel } from "../models/post";
 import { PatchUser } from "../types/patch";
 import { getErrorMessage } from "../utils/error";
 import { invalidateFollowingCache } from "../utils/invalidateCache";
@@ -13,6 +14,40 @@ export async function getAllUser(req: Request, res: Response) {
   try {
     const users = await UserModel.findAll();
     res.status(200).json(users);
+  } catch (err) {
+    res.status(500).json({ error: getErrorMessage(err) });
+  }
+}
+
+export async function searchUsersByUsername(req: Request, res: Response) {
+  const query = req.query.q;
+  if (typeof query !== "string" || query.trim().length < 2 || query.trim().length > 30) {
+    res.status(400).json({ error: "Username query must be between 2 and 30 characters" });
+    return;
+  }
+  try {
+    const users = await UserModel.searchByUsername(query.trim());
+    res.status(200).json({ users });
+  } catch (err) {
+    res.status(500).json({ error: getErrorMessage(err) });
+  }
+}
+
+export async function getUserPosts(req: Request, res: Response) {
+  const userId = req.params.id;
+  const rawLimit = Number(req.query.limit);
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0
+    ? Math.min(Math.floor(rawLimit), 50)
+    : 20;
+  const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+  try {
+    const user = await UserModel.findByIdPublic(userId);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const posts = await PostModel.findByAuthor(userId, cursor, limit);
+    res.status(200).json({ posts });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }

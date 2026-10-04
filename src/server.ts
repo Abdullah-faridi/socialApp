@@ -30,7 +30,7 @@ export const io = new Server(httpServer, {
     callback(null, !origin || allowedOrigins.includes(origin));
   },
 });
-registerAIQueueEvents(io);
+export const aiQueueEvents = registerAIQueueEvents(io);
 io.use((socket, next) => {
   socketAuthMiddleware(socket as AuthenticatedSocket, next);
 });

@@ -18,16 +18,30 @@ export async function signUpController(req: Request, res: Response) {
       res.status(400).json({ error: "All fields required" });
       return;
     }
-    if (![fullName, email, password, username].every((value) => typeof value === "string")) {
+    if (
+      ![fullName, email, password, username].every(
+        (value) => typeof value === "string",
+      )
+    ) {
       res.status(400).json({ error: "All fields must be strings" });
       return;
     }
-    if (fullName.trim().length > 120 || username.trim().length > 30 || !/^[a-zA-Z0-9_.-]{3,30}$/.test(username.trim())) {
+    if (
+      fullName.trim().length > 120 ||
+      username.trim().length > 30 ||
+      !/^[a-zA-Z0-9_.-]{3,30}$/.test(username.trim())
+    ) {
       res.status(400).json({ error: "Invalid name or username" });
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) || password.length < 10 || password.length > 128) {
-      res.status(400).json({ error: "Email or password does not meet requirements" });
+    if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+      password.length < 10 ||
+      password.length > 128
+    ) {
+      res
+        .status(400)
+        .json({ error: "Email or password does not meet requirements" });
       return;
     }
 
@@ -68,15 +82,16 @@ export async function signInController(req: Request, res: Response) {
       res.status(403).json({ error: "Account is banned" });
       return;
     }
+
     const sessionId = uuidv7();
     await redisClient.set(
       `session:${sessionId}`,
-      JSON.stringify({
-        userId: user.id,
-      }),
+      JSON.stringify({ userId: user.id }),
       { EX: 60 * 60 * 24 * 30 },
     );
+
     const token = createTokenForUser(user.id, sessionId);
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -84,10 +99,22 @@ export async function signInController(req: Request, res: Response) {
       path: "/",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
-
-    res.status(200).json({ message: "Login success" });
+    res.status(200).json({
+      message: "Login success",
+      accessToken: token,
+      user: {
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        profileImageURL: user.profileImageURL,
+        role: user.role,
+      },
+    });
   } catch (err) {
-    if (err instanceof Error && ["User not found", "Invalid credentials"].includes(err.message)) {
+    if (
+      err instanceof Error &&
+      ["User not found", "Invalid credentials"].includes(err.message)
+    ) {
       res.status(401).json({ error: "Invalid email or password" });
       return;
     }
@@ -118,3 +145,31 @@ export async function logoutController(req: Request, res: Response) {
     res.status(500).json({ error: "Unable to log out" });
   }
 }
+
+export const getCurrentUser = async (req: Request, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        message: "Not authenticated",
+      });
+    }
+
+    const user = await UserModel.findByIdPublic(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      user: { ...user, role: req.user.role },
+    });
+  } catch (error) {
+    console.error("Get current user error:", error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};

@@ -38,6 +38,12 @@ export const MessageModel = {
     };
   },
 
+  async edit(messageId: string, content: string) {
+    return prisma.message.updateMany({
+      where: { id: messageId, isDeleted: false },
+      data: { content },
+    });
+  },
   async softDelete(messageId: string) {
     return prisma.message.update({
       where: { id: messageId },

@@ -1,6 +1,8 @@
 import express from "express";
 import {
   getUserPublicProfile,
+  getUserPosts,
+  searchUsersByUsername,
   UpdateUserProfile,
   FollowUser,
   unfollowUser,
@@ -14,6 +16,8 @@ import { uploadAvatar } from "../middlewares/uploadFile";
 import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 
+router.get("/search", searchUsersByUsername);
+router.get("/:id/posts", getUserPosts);
 router.get("/:id", getUserPublicProfile);
 
 router.patch("/:id", auth, requireSelf(), UpdateUserProfile);

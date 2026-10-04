@@ -8,6 +8,7 @@
     "worker": "tsx src/worker/ai.ts",
     "build": "tsc",
     "start": "node dist/app.js",
+    "start:worker": "node dist/worker/ai.js",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init",
     "db:studio": "prisma studio",

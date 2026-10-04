@@ -7,7 +7,6 @@ export function validateEnvironment() {
     "R2_ACCESS_KEY_ID",
     "R2_SECRET_ACCESS_KEY",
     "R2_BUCKET_NAME",
-    "R2_PUBLIC_KEY",
     "GEMINI_API_KEY",
   ];
   const missing = required.filter((key) => !process.env[key]?.trim());
@@ -58,5 +57,15 @@ export function validateEnvironment() {
     if (process.env.NODE_ENV === "production" && parsed.protocol !== "https:") {
       throw new Error("Production CLIENT_URL origins must use HTTPS");
     }
+  }
+}
+
+export function validateWorkerEnvironment() {
+  const required = ["DATABASE_URL", "REDIS_URL", "GEMINI_API_KEY"];
+  const missing = required.filter((key) => !process.env[key]?.trim());
+  if (missing.length) {
+    throw new Error(
+      `Missing required worker environment variables: ${missing.join(", ")}`,
+    );
   }
 }

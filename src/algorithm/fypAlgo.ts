@@ -81,7 +81,24 @@ export async function generateForYourPage(userId: string) {
   const cachedFeed = await redisClient.get(cacheKey);
 
   if (cachedFeed) {
-    return JSON.parse(cachedFeed);
+    try {
+      const parsed: unknown = JSON.parse(cachedFeed);
+      if (Array.isArray(parsed)) return parsed;
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        "feed" in parsed &&
+        Array.isArray(parsed.feed)
+      ) {
+        await redisClient.set(cacheKey, JSON.stringify(parsed.feed), {
+          EX: 120,
+        });
+        return parsed.feed;
+      }
+    } catch {
+      await redisClient.del(cacheKey);
+    }
+    await redisClient.del(cacheKey);
   }
   const now = Date.now();
   const threeDaysAgo = new Date(now - 3 * 24 * 60 * 60 * 1000);
@@ -238,7 +255,8 @@ export async function generateForYourPage(userId: string) {
   });
   const result = scoredPosts.sort((a, b) => b.score - a.score).slice(0, 50);
   if (result.length === 0) {
-    return { feed: [], source: "db" };
+    await redisClient.set(cacheKey, JSON.stringify([]), { EX: 120 });
+    return [];
   }
   await redisClient.set(cacheKey, JSON.stringify(result), { EX: 120 });
   return result;

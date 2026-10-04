@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { httpServer, app } from "./server";
+import { aiQueueEvents, httpServer, app, io } from "./server";
 import cookieParser from "cookie-parser";
 import { prisma } from "./config/db";
 import redisClient from "./config/redis";
@@ -14,6 +14,8 @@ import chatRoomRoutes from "./routes/chatRoom";
 import { errorHandler, validateRequest } from "./middlewares/errors";
 import { validateEnvironment } from "./config/env";
 import notificationRoutes from "./routes/notification";
+import { aiQueue } from "./queues/ai";
+import { bullmqConnection } from "./config/bullmq";
 const PORT = Number(process.env.PORT) || 3000;
 
 validateEnvironment();
@@ -59,7 +61,16 @@ app.use((req, res, next) => {
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
+app.get("/health", async (_req, res) => {
+  try {
+    await Promise.all([prisma.$queryRaw`SELECT 1`, redisClient.ping()]);
+    res.status(200).json({ status: "ok" });
+  } catch {
+    res.status(503).json({ status: "unavailable" });
+  }
+});
 app.use(validateRequest);
+app.use(express.static("public"));
 
 app.use("/auth", authRoutes);
 app.use("/user", userRoutes);
@@ -71,6 +82,29 @@ app.use("/room", chatRoomRoutes);
 app.use("/notifications", notificationRoutes);
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
 app.use(errorHandler);
+async function closeDependencies(): Promise<void> {
+  const queueResults = await Promise.allSettled([
+    aiQueueEvents.close(),
+    aiQueue.close(),
+  ]);
+  queueResults.forEach((result) => {
+    if (result.status === "rejected")
+      console.error("Failed to close an AI queue resource:", result.reason);
+  });
+
+  const connectionResults = await Promise.allSettled([
+    prisma.$disconnect(),
+    redisClient.isOpen ? redisClient.quit() : Promise.resolve(),
+    bullmqConnection.status === "end"
+      ? Promise.resolve()
+      : bullmqConnection.quit(),
+  ]);
+  connectionResults.forEach((result) => {
+    if (result.status === "rejected")
+      console.error("Failed to close a backend connection:", result.reason);
+  });
+}
+
 async function main(): Promise<void> {
   try {
     await prisma.$connect();
@@ -83,19 +117,41 @@ async function main(): Promise<void> {
     });
   } catch (err) {
     console.error("Startup error:", err);
-    await prisma.$disconnect();
-    process.exit(1);
+    await closeDependencies();
+    process.exitCode = 1;
   }
 }
-process.on("SIGINT", async () => {
-  await prisma.$disconnect();
-  await redisClient.quit();
-  process.exit(0);
+
+let shutdownPromise: Promise<void> | undefined;
+function shutdown(signal: string): Promise<void> {
+  if (shutdownPromise) return shutdownPromise;
+  console.log(`Received ${signal}; shutting down gracefully`);
+  const timeout = setTimeout(() => {
+    console.error("Graceful shutdown timed out");
+    process.exit(1);
+  }, 30000);
+  timeout.unref();
+  shutdownPromise = new Promise<void>((resolve) => {
+    io.close(() => resolve());
+  })
+    .then(closeDependencies)
+    .finally(() => {
+      clearTimeout(timeout);
+    });
+  return shutdownPromise;
+}
+
+process.on("SIGINT", () => {
+  void shutdown("SIGINT").catch((error) => {
+    console.error("Shutdown failed:", error);
+    process.exitCode = 1;
+  });
 });
-process.on("SIGTERM", async () => {
-  await prisma.$disconnect();
-  await redisClient.quit();
-  process.exit(0);
+process.on("SIGTERM", () => {
+  void shutdown("SIGTERM").catch((error) => {
+    console.error("Shutdown failed:", error);
+    process.exitCode = 1;
+  });
 });
 
 main();

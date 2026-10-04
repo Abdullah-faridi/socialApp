@@ -2,6 +2,7 @@ import {
   signUpController,
   signInController,
   logoutController,
+  getCurrentUser,
 } from "../controllers/auth";
 import express from "express";
 
@@ -11,6 +12,7 @@ import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 router.post("/signup", rateLimit("signup", 10, 900), signUpController);
 router.post("/signin", rateLimit("signin", 10, 900), signInController);
+router.get("/me", auth, getCurrentUser);
 router.post("/logout", auth, logoutController);
 
 export default router;

@@ -72,6 +72,14 @@ export const UserModel = {
       select: safeUserSelect,
     });
   },
+  async searchByUsername(query: string) {
+    return prisma.user.findMany({
+      where: { username: { contains: query, mode: "insensitive" } },
+      select: safeUserSelect,
+      orderBy: { username: "asc" },
+      take: 20,
+    });
+  },
   async findAvatarKey(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },

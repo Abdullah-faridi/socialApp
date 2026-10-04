@@ -44,6 +44,28 @@ export const PostModel = {
       nextCursor: hasMore ? posts[posts.length - 1].id : null,
     };
   },
+  async findByAuthor(authorId: string, cursor?: string, limit: number = 20) {
+    const found = await prisma.post.findMany({
+      where: { authorId },
+      take: limit + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: { select: { id: true, fullName: true, username: true, profileImageURL: true } },
+        _count: { select: { likes: true, comments: true } },
+        media: { orderBy: { order: "asc" } },
+      },
+    });
+    const hasMore = found.length > limit;
+    if (hasMore) found.pop();
+    return {
+      posts: found,
+      hasMore,
+      nextCursor: hasMore && found.length ? found[found.length - 1].id : null,
+    };
+  },
+
   async findById(postId: string) {
     return prisma.post.findUnique({
       where: {

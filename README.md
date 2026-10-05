@@ -141,5 +141,4 @@ The health endpoint verifies the availability of the API's PostgreSQL and Redis 
 
 **Discere** is being developed as a full-stack social learning platform.
 
-Frontend: `discere.online`
-Backend: `api.discere.online`
+Visit **[Discere](https://discere.online)** to explore the platform.

@@ -10,14 +10,14 @@ import {
   followingList,
   uploadAvatarController,
 } from "../controllers/user";
-import auth from "../middlewares/auth";
+import auth, { optionalAuth } from "../middlewares/auth";
 import { requireSelf } from "../middlewares/userAuthorization";
 import { uploadAvatar } from "../middlewares/uploadFile";
 import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 
 router.get("/search", searchUsersByUsername);
-router.get("/:id/posts", getUserPosts);
+router.get("/:id/posts", optionalAuth, getUserPosts);
 router.get("/:id", getUserPublicProfile);
 
 router.patch("/:id", auth, requireSelf(), UpdateUserProfile);

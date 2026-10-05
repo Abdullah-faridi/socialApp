@@ -16,11 +16,88 @@ async function generateAndStoreEmbeddings(postId: string, text: string) {
   `;
 }
 
-export function indexPost(post: { id: string; title: string; content: string; tags: string[] }) {
-  return generateAndStoreEmbeddings(post.id, `${post.title} ${post.content} ${post.tags.join(" ")}`);
+export function indexPost(post: {
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+}) {
+  return generateAndStoreEmbeddings(
+    post.id,
+    `${post.title} ${post.content} ${post.tags.join(" ")}`,
+  );
 }
 
 export const PostModel = {
+  async withInteractionState<T extends { id: string }>(
+    posts: T[],
+    userId?: string,
+  ) {
+    if (!posts.length)
+      return posts.map((post) => ({
+        ...post,
+        likedByMe: false,
+        savedByMe: false,
+      }));
+    if (!userId)
+      return posts.map((post) => ({
+        ...post,
+        likedByMe: false,
+        savedByMe: false,
+      }));
+    const postIds = posts.map((post) => post.id);
+    const [likes, saves] = await Promise.all([
+      prisma.like.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+      prisma.savedPost.findMany({
+        where: { userId, postId: { in: postIds } },
+        select: { postId: true },
+      }),
+    ]);
+    const likedIds = new Set(likes.map((like) => like.postId));
+    const savedIds = new Set(saves.map((save) => save.postId));
+    return posts.map((post) => ({
+      ...post,
+      likedByMe: likedIds.has(post.id),
+      savedByMe: savedIds.has(post.id),
+    }));
+  },
+  async findUserCollection(
+    userId: string,
+    collection: "liked" | "saved",
+    cursor?: string,
+    limit: number = 20,
+  ) {
+    const relation = collection === "liked" ? "likes" : "savedBy";
+    const found = await prisma.post.findMany({
+      where: { [relation]: { some: { userId } } },
+      take: limit + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      skip: cursor ? 1 : 0,
+      orderBy: { createdAt: "desc" },
+      include: {
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            profileImageURL: true,
+          },
+        },
+        _count: { select: { likes: true, comments: true } },
+        media: { orderBy: { order: "asc" } },
+      },
+    });
+    const hasMore = found.length > limit;
+    if (hasMore) found.pop();
+    return {
+      posts: await this.withInteractionState(found, userId),
+      hasMore,
+      nextCursor: hasMore && found.length ? found[found.length - 1].id : null,
+    };
+  },
   async findAll(cursor?: string, limit: number = 20) {
     const posts = await prisma.post.findMany({
       take: limit + 1,
@@ -52,7 +129,14 @@ export const PostModel = {
       skip: cursor ? 1 : 0,
       orderBy: { createdAt: "desc" },
       include: {
-        author: { select: { id: true, fullName: true, username: true, profileImageURL: true } },
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            profileImageURL: true,
+          },
+        },
         _count: { select: { likes: true, comments: true } },
         media: { orderBy: { order: "asc" } },
       },
@@ -80,7 +164,14 @@ export const PostModel = {
     return prisma.post.findUnique({
       where: { id: postId },
       include: {
-        author: { select: { id: true, fullName: true, username: true, profileImageURL: true } },
+        author: {
+          select: {
+            id: true,
+            fullName: true,
+            username: true,
+            profileImageURL: true,
+          },
+        },
         media: { orderBy: { order: "asc" } },
         _count: { select: { likes: true, comments: true } },
       },
@@ -102,7 +193,9 @@ export const PostModel = {
   },
   async update(postId: string, data: updatePost) {
     const post = await prisma.post.update({ where: { id: postId }, data });
-    void indexPost(post).catch((error) => console.error("Embedding refresh failed:", error));
+    void indexPost(post).catch((error) =>
+      console.error("Embedding refresh failed:", error),
+    );
     return post;
   },
   async delete(postId: string) {

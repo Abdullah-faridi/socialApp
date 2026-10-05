@@ -28,12 +28,10 @@ export async function createPost(req: Request, res: Response) {
     !content.trim() ||
     content.length > 50000
   ) {
-    res
-      .status(400)
-      .json({
-        error:
-          "Title and content are required and must be within allowed lengths",
-      });
+    res.status(400).json({
+      error:
+        "Title and content are required and must be within allowed lengths",
+    });
     return;
   }
   let normalizedTags: string[] = [];
@@ -124,11 +122,49 @@ export async function getAllPosts(req: Request, res: Response) {
     const cursor = (req.query.cursor as string) || undefined;
     const limit = Math.max(1, Math.min(Number(req.query.limit) || 20, 50));
     const posts = await PostModel.findAll(cursor, limit);
+    posts.posts = await PostModel.withInteractionState(
+      posts.posts,
+      req.user?.id,
+    );
     res.status(200).json({ posts });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }
 }
+
+async function getUserPostCollection(
+  req: Request,
+  res: Response,
+  collection: "liked" | "saved",
+) {
+  const rawLimit = Number(req.query.limit);
+  const limit =
+    Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), 50)
+      : 20;
+  const cursor =
+    typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+  try {
+    const result = await PostModel.findUserCollection(
+      req.user!.id,
+      collection,
+      cursor,
+      limit,
+    );
+    res.status(200).json(result);
+  } catch (err) {
+    res.status(500).json({ error: getErrorMessage(err) });
+  }
+}
+
+export async function getLikedPosts(req: Request, res: Response) {
+  await getUserPostCollection(req, res, "liked");
+}
+
+export async function getSavedPosts(req: Request, res: Response) {
+  await getUserPostCollection(req, res, "saved");
+}
+
 export async function getPersonalizedFeed(req: Request, res: Response) {
   try {
     const rawPage = Number(req.query.page);
@@ -143,6 +179,10 @@ export async function getPersonalizedFeed(req: Request, res: Response) {
         : 10;
     const feed = await generateForYourPage(req.user!.id);
     const result = paginateFeed(feed, page, limit);
+    result.feed = await PostModel.withInteractionState(
+      result.feed,
+      req.user!.id,
+    );
     res.status(200).json(result);
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
@@ -190,7 +230,11 @@ export async function updatePost(req: Request, res: Response) {
       res.status(404).json({ message: "post not found" });
       return;
     }
-    res.status(200).json({ post });
+    const [postWithState] = await PostModel.withInteractionState(
+      [post],
+      req.user?.id,
+    );
+    res.status(200).json({ post: postWithState });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }
@@ -203,7 +247,11 @@ export async function getPostById(req: Request, res: Response) {
       res.status(404).json({ message: "invalid id" });
       return;
     }
-    res.status(200).json({ post });
+    const [postWithState] = await PostModel.withInteractionState(
+      [post],
+      req.user?.id,
+    );
+    res.status(200).json({ post: postWithState });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }
@@ -265,9 +313,9 @@ export async function likePost(req: Request, res: Response) {
           entityId: postId,
         });
 
-      res.status(200).json({ message: "Liked" });
+      res.status(200).json({ message: "Liked", liked: true });
     } else {
-      res.status(200).json({ message: "unliked" });
+      res.status(200).json({ message: "unliked", liked: false });
     }
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
@@ -292,9 +340,9 @@ export async function savePost(req: Request, res: Response) {
     const toggle = await savePostModel.add(postId, userId);
 
     if (toggle.saved) {
-      res.status(200).json({ message: "Post saved" });
+      res.status(200).json({ message: "Post saved", saved: true });
     } else {
-      res.status(200).json({ message: "Post unsaved" });
+      res.status(200).json({ message: "Post unsaved", saved: false });
     }
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
@@ -323,7 +371,10 @@ export async function searchByKeyword(req: Request, res: Response) {
   }
   try {
     const posts = await PostModel.search(userQuery);
-    res.status(200).json({ posts, total: posts.length });
+    res.status(200).json({
+      posts: await PostModel.withInteractionState(posts, req.user?.id),
+      total: posts.length,
+    });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }
@@ -341,7 +392,9 @@ export async function semanticSearch(req: Request, res: Response) {
   }
   try {
     const posts = await PostModel.semanticSearch(userQuery.trim());
-    res.status(200).json({ posts });
+    res.status(200).json({
+      posts: await PostModel.withInteractionState(posts, req.user?.id),
+    });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
   }

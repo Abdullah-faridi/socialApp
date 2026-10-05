@@ -21,8 +21,14 @@ export async function getAllUser(req: Request, res: Response) {
 
 export async function searchUsersByUsername(req: Request, res: Response) {
   const query = req.query.q;
-  if (typeof query !== "string" || query.trim().length < 2 || query.trim().length > 30) {
-    res.status(400).json({ error: "Username query must be between 2 and 30 characters" });
+  if (
+    typeof query !== "string" ||
+    query.trim().length < 2 ||
+    query.trim().length > 30
+  ) {
+    res
+      .status(400)
+      .json({ error: "Username query must be between 2 and 30 characters" });
     return;
   }
   try {
@@ -36,10 +42,12 @@ export async function searchUsersByUsername(req: Request, res: Response) {
 export async function getUserPosts(req: Request, res: Response) {
   const userId = req.params.id;
   const rawLimit = Number(req.query.limit);
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0
-    ? Math.min(Math.floor(rawLimit), 50)
-    : 20;
-  const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
+  const limit =
+    Number.isFinite(rawLimit) && rawLimit > 0
+      ? Math.min(Math.floor(rawLimit), 50)
+      : 20;
+  const cursor =
+    typeof req.query.cursor === "string" ? req.query.cursor : undefined;
   try {
     const user = await UserModel.findByIdPublic(userId);
     if (!user) {
@@ -47,6 +55,10 @@ export async function getUserPosts(req: Request, res: Response) {
       return;
     }
     const posts = await PostModel.findByAuthor(userId, cursor, limit);
+    posts.posts = await PostModel.withInteractionState(
+      posts.posts,
+      req.user?.id,
+    );
     res.status(200).json({ posts });
   } catch (err) {
     res.status(500).json({ error: getErrorMessage(err) });
@@ -70,20 +82,41 @@ export async function UpdateUserProfile(req: Request, res: Response) {
   const userId = req.params.id;
   const updates = req.body as PatchUser;
   const keys = Object.keys(req.body ?? {});
-  if (!keys.length || keys.some((key) => !["fullName", "email", "password"].includes(key))) {
-    res.status(400).json({ error: "Only fullName, email, and password may be updated" });
+  if (
+    !keys.length ||
+    keys.some((key) => !["fullName", "email", "password"].includes(key))
+  ) {
+    res
+      .status(400)
+      .json({ error: "Only fullName, email, and password may be updated" });
     return;
   }
-  if (updates.fullName !== undefined && (typeof updates.fullName !== "string" || !updates.fullName.trim() || updates.fullName.length > 120)) {
+  if (
+    updates.fullName !== undefined &&
+    (typeof updates.fullName !== "string" ||
+      !updates.fullName.trim() ||
+      updates.fullName.length > 120)
+  ) {
     res.status(400).json({ error: "Invalid full name" });
     return;
   }
-  if (updates.email !== undefined && (typeof updates.email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.email.trim()))) {
+  if (
+    updates.email !== undefined &&
+    (typeof updates.email !== "string" ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.email.trim()))
+  ) {
     res.status(400).json({ error: "Invalid email address" });
     return;
   }
-  if (updates.password !== undefined && (typeof updates.password !== "string" || updates.password.length < 10 || updates.password.length > 128)) {
-    res.status(400).json({ error: "Password must be between 10 and 128 characters" });
+  if (
+    updates.password !== undefined &&
+    (typeof updates.password !== "string" ||
+      updates.password.length < 10 ||
+      updates.password.length > 128)
+  ) {
+    res
+      .status(400)
+      .json({ error: "Password must be between 10 and 128 characters" });
     return;
   }
   try {
@@ -214,7 +247,10 @@ export async function uploadAvatarController(req: Request, res: Response) {
     }
     return res.status(200).json({ success: true, url, key, user: updatedUser });
   } catch (err) {
-    if (uploadedKey) await deleteFromR2(uploadedKey).catch((cleanupError) => console.error("Failed to clean up uploaded avatar:", cleanupError));
+    if (uploadedKey)
+      await deleteFromR2(uploadedKey).catch((cleanupError) =>
+        console.error("Failed to clean up uploaded avatar:", cleanupError),
+      );
     res.status(500).json({ error: getErrorMessage(err) });
   }
 }

@@ -3,8 +3,10 @@ import {
   createPost,
   deletePost,
   getAllPosts,
+  getLikedPosts,
   getPersonalizedFeed,
   getPostById,
+  getSavedPosts,
   likeCount,
   likePost,
   savePost,
@@ -13,7 +15,7 @@ import {
   semanticSearch,
   updatePost,
 } from "../controllers/post";
-import auth from "../middlewares/auth";
+import auth, { optionalAuth } from "../middlewares/auth";
 import { postExists } from "../middlewares/postAuthorization";
 import { PostModel } from "../models/post";
 import { canModifyResource } from "../utils/canModifyResources";
@@ -22,13 +24,21 @@ import { uploadPostMedia } from "../middlewares/uploadFile";
 import { rateLimit } from "../middlewares/rateLimit";
 const router = express.Router();
 
-router.post("/createPost", auth, rateLimit("post-upload", 10, 60), uploadPostMedia, createPost);
+router.post(
+  "/createPost",
+  auth,
+  rateLimit("post-upload", 10, 60),
+  uploadPostMedia,
+  createPost,
+);
 
-router.get("/", getAllPosts);
+router.get("/liked", auth, getLikedPosts);
+router.get("/saved", auth, getSavedPosts);
+router.get("/", optionalAuth, getAllPosts);
 router.get("/feed", auth, getPersonalizedFeed);
-router.get("/search", searchByKeyword);
+router.get("/search", optionalAuth, searchByKeyword);
 router.get("/search/semantic", auth, semanticSearch);
-router.get("/:id", postExists, getPostById);
+router.get("/:id", optionalAuth, postExists, getPostById);
 
 router.patch(
   "/:id",
